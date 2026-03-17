@@ -118,4 +118,4 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 **Version:** 1.0.0  
 **Last Updated:** March 2025  
-**Maintained By:** [Your Name]
+**Maintained By:** Ayman Bin Abdul Mannan
