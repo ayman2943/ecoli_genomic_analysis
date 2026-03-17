@@ -251,11 +251,11 @@ If you use this pipeline in your research, please cite:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the (LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome! Please read (CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ### Development Guidelines
 
@@ -269,9 +269,6 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 Found a bug or have a feature request? Please open an issue on [GitHub Issues](https://github.com/yourusername/ecoli-genomic-analysis/issues).
 
-## 👥 Authors
-
-- **Your Name** - *Initial work* - [YourGitHub](https://github.com/yourusername)
 
 ## 🙏 Acknowledgments
 
@@ -281,7 +278,7 @@ Found a bug or have a feature request? Please open an issue on [GitHub Issues](h
 
 ## 📞 Contact
 
-For questions or collaboration inquiries, please contact: your.email@example.com
+For questions or collaboration inquiries, please contact: aymanbin2943@gmail.com
 
 ---
 
