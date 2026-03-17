@@ -1,0 +1,58 @@
+# E. coli Genomic Analysis Pipeline - R Package Requirements
+# Install all packages using: Rscript -e "source('requirements.R')"
+
+# Core tidyverse packages
+tidyverse >= 2.0.0
+readxl >= 1.4.0
+writexl >= 1.4.0
+data.table >= 1.14.0
+
+# Visualization
+ggplot2 >= 3.4.0
+scales >= 1.2.0
+RColorBrewer >= 1.1-3
+viridis >= 0.6.0
+ggpubr >= 0.6.0
+gridExtra >= 2.3
+patchwork >= 1.1.0
+ggsci >= 3.0.0
+ggridges >= 0.5.0
+ggtext >= 0.1.0
+ggrepel >= 0.9.0
+colorspace >= 2.1-0
+pheatmap >= 1.0.12
+
+# Statistical analysis
+vegan >= 2.6-0
+MASS >= 7.3-58
+rstatix >= 0.7.0
+broom >= 1.0.0
+epitools >= 0.5-10
+
+# Network analysis
+igraph >= 1.3.0
+ggraph >= 2.1.0
+tidygraph >= 1.2.0
+corrplot >= 0.92
+
+# Text and data manipulation
+stringi >= 1.7.0
+tidytext >= 0.4.0
+
+# Reporting
+flextable >= 0.9.0
+officer >= 0.6.0
+
+# Parallel processing
+parallel >= 4.0.0
+
+# Note: Version numbers are minimum requirements
+# Install all with:
+# install.packages(c(
+#   "tidyverse", "readxl", "writexl", "data.table", "scales",
+#   "RColorBrewer", "viridis", "ggpubr", "gridExtra", "patchwork",
+#   "ggsci", "ggridges", "ggtext", "ggrepel", "vegan", "MASS",
+#   "rstatix", "broom", "epitools", "igraph", "ggraph", "tidygraph",
+#   "corrplot", "stringi", "tidytext", "flextable", "officer",
+#   "colorspace", "pheatmap"
+# ))
