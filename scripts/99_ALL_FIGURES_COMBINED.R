@@ -93,21 +93,21 @@ for (st in st_list) {
 
   card_file <- config$st_card_burden(st)
   if (file.exists(card_file)) {
-    c <- read_tsv(card_file, show_col_types = FALSE, col_types = cols(.default = "c")) %>%
+    card <- read_tsv(card_file, show_col_types = FALSE, col_types = cols(.default = "c")) %>%
       mutate(genome_id = make_genome_id(str_remove(basename(.data[["#FILE"]]), "_card\\.tsv$")),
              burden = as.numeric(NUM_FOUND)) %>%
       select(genome_id, burden) %>% inner_join(meta, by = "genome_id") %>%
       group_by(year) %>% summarise(m = mean(burden, na.rm = TRUE),
         se = sd(burden, na.rm = TRUE) / sqrt(n()), n = n(), .groups = "drop") %>%
       filter(n >= 5) %>% mutate(st = st, db = "CARD")
-    all_data[[length(all_data) + 1]] <- c
+    all_data[[length(all_data) + 1]] <- card
   }
 
   vf_file <- config$st_vf_summary(st)
   if (file.exists(vf_file)) {
-    vf <- read_tsv(vf_file, show_col_types = FALSE, col_types = cols(.default = "c")) %>%
-      mutate(genome_id = make_genome_id(str_remove(basename(.data[["#FILE"]]), "_vf\\.tsv$")),
-             burden = as.numeric(NUM_FOUND)) %>%
+    vf <- read_tsv(vf_file, show_col_types = FALSE) %>%
+      rename(genome_id = genome, burden = virulencefinder_burden) %>%
+      mutate(genome_id = make_genome_id(genome_id), burden = as.numeric(burden)) %>%
       select(genome_id, burden) %>% inner_join(meta, by = "genome_id") %>%
       group_by(year) %>% summarise(m = mean(burden, na.rm = TRUE),
         se = sd(burden, na.rm = TRUE) / sqrt(n()), n = n(), .groups = "drop") %>%
@@ -117,9 +117,9 @@ for (st in st_list) {
 
   resf_file <- config$st_resfinder_summary(st)
   if (file.exists(resf_file)) {
-    r <- read_tsv(resf_file, show_col_types = FALSE, col_types = cols(.default = "c")) %>%
-      mutate(genome_id = make_genome_id(str_remove(basename(.data[["#FILE"]]), "_resfinder\\.tsv$")),
-             burden = as.numeric(NUM_FOUND)) %>%
+    r <- read_tsv(resf_file, show_col_types = FALSE) %>%
+      rename(genome_id = genome, burden = resfinder_burden) %>%
+      mutate(genome_id = make_genome_id(genome_id), burden = as.numeric(burden)) %>%
       select(genome_id, burden) %>% inner_join(meta, by = "genome_id") %>%
       group_by(year) %>% summarise(m = mean(burden, na.rm = TRUE),
         se = sd(burden, na.rm = TRUE) / sqrt(n()), n = n(), .groups = "drop") %>%
@@ -184,7 +184,7 @@ st69_ksel <- read.csv(file.path(config$OUTPUT_DIR, "ST69", "vfdb_analysis",
   "02B_k_selection_summary.csv"), stringsAsFactors = FALSE)
 
 # Figure 2: Silhouette
-fig2 <- ggplot(st69_sil, aes(x = factor(k), y = avg_silhouette_width)) +
+fig2 <- ggplot(st69_sil, aes(x = factor(k), y = average_silhouette_width)) +
   geom_col(fill = "#4ECDC4", alpha = 0.8, width = 0.6) +
   geom_point(size = 2) + geom_line(aes(group = 1), linewidth = 0.5) +
   labs(x = "Number of clusters (k)", y = "Average silhouette width",
@@ -382,29 +382,38 @@ if (file.exists(tree_file) && requireNamespace("ape", quietly = TRUE) &&
     if (length(missing_tips) > 0) trait <- c(trait, setNames(rep("Unknown", length(missing_tips)), missing_tips))
     trait <- trait[tree$tip.label]
 
-    parsimony_score <- function(tree, tv) {
-      phangorn::parsimony(tree, phangorn::phyDat(tv[!is.na(tv) & tv != "Unknown"], type = "USER"))
-    }
-    obs <- parsimony_score(tree, trait)
-    N_PERM <- 999
-    set.seed(42)
-    perm_scores <- replicate(N_PERM, {
-      perm_trait <- sample(trait)
-      names(perm_trait) <- names(trait)
-      parsimony_score(tree, perm_trait)
-    })
-    p_val <- (sum(perm_scores <= obs) + 1) / (N_PERM + 1)
+    tryCatch({
+      parsimony_score <- function(tree, tv) {
+        keep <- !is.na(tv) & tv != "Unknown"
+        tvk <- as.character(tv[keep]); names(tvk) <- names(tv)[keep]
+        t_sub <- ape::drop.tip(tree, setdiff(tree$tip.label, names(tvk)))
+        tvk <- tvk[t_sub$tip.label]
+        phangorn::parsimony(t_sub, phangorn::phyDat(tvk, type = "USER",
+                                                    levels = sort(unique(tvk))))
+      }
+      obs <- parsimony_score(tree, trait)
+      N_PERM <- 999
+      set.seed(42)
+      perm_scores <- replicate(N_PERM, {
+        perm_trait <- sample(trait)
+        names(perm_trait) <- names(trait)
+        parsimony_score(tree, perm_trait)
+      })
+      p_val <- (sum(perm_scores <= obs) + 1) / (N_PERM + 1)
 
-    perm_df <- tibble(score = perm_scores)
-    figS1 <- ggplot(perm_df, aes(x = score)) +
-      geom_histogram(binwidth = 10, fill = "grey70", color = "grey40", alpha = 0.8) +
-      geom_vline(xintercept = obs, color = "#E74C3C", linewidth = 1.2, linetype = "dashed") +
-      annotate("text", x = obs, y = Inf, label = paste0("Observed = ", obs, "\np = ", round(p_val, 4)),
-               vjust = 2, hjust = -0.1, color = "#E74C3C", fontface = "bold") +
-      labs(x = "Parsimony score", y = "Frequency",
-           title = paste0("Supplementary S1. Parsimony permutation test (p = ", round(p_val, 4), ")")) +
-      theme_pub
-    print(figS1)
+      perm_df <- tibble(score = perm_scores)
+      figS1 <- ggplot(perm_df, aes(x = score)) +
+        geom_histogram(binwidth = 10, fill = "grey70", color = "grey40", alpha = 0.8) +
+        geom_vline(xintercept = obs, color = "#E74C3C", linewidth = 1.2, linetype = "dashed") +
+        annotate("text", x = obs, y = Inf, label = paste0("Observed = ", obs, "\np = ", round(p_val, 4)),
+                 vjust = 2, hjust = -0.1, color = "#E74C3C", fontface = "bold") +
+        labs(x = "Parsimony score", y = "Frequency",
+             title = paste0("Supplementary S1. Parsimony permutation test (p = ", round(p_val, 4), ")")) +
+        theme_pub
+      print(figS1)
+    }, error = function(e) {
+      cat("  S1 parsimony permutation failed (", conditionMessage(e), ") — skipping\n", sep = "")
+    })
   }
 }
 

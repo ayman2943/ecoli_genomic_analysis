@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
 })
 source("config.R")
 
-OUT <- file.path(config$OUTPUT_DIR, "ST69", "reviewer_rgp_context")
+OUT <- file.path(config$OUTPUT_DIR, config$TARGET_ST, "reviewer_rgp_context")
 dir.create(OUT, showWarnings=FALSE, recursive=TRUE)
 EARLY <- c(2016,2017,2018); LATE <- c(2022,2023,2024,2025)
 
@@ -47,7 +47,7 @@ cat("Loading data...\n")
 
 # Master table (has cluster + VF binary)
 master <- fread(
-  file.path(config$st_out_vfdb("ST69"), "04_master_shell_cluster_metadata_VFDB_table.csv"),
+  file.path(config$st_out_vfdb(config$TARGET_ST), "04_master_shell_cluster_metadata_VFDB_table.csv"),
   sep=",", header=TRUE, data.table=FALSE) %>%
   mutate(gid_clean = clean_gid(.data[["#FILE"]]), year=as.integer(year))
 
@@ -71,7 +71,12 @@ master_bin <- master %>%
 # 3. Load plasmid VFDB summary
 ################################################################################
 cat("Loading plasmid data...\n")
-pl_vf <- fread(file.path(config$BASE_DIR,"..","Plasmid","plasmid_vfdb_summary","ST69_plasmid_summary.tsv"),
+pl_file <- file.path(config$BASE_DIR,"..","Plasmid","plasmid_vfdb_summary",paste0(config$TARGET_ST, "_plasmid_summary.tsv"))
+if (!file.exists(pl_file)) {
+  stop("Plasmid VFDB summary not found at ", pl_file,
+       " (requires the external Plasmid dataset). Skipping plasmid-context analysis.")
+}
+pl_vf <- fread(pl_file,
   sep="\t", header=TRUE, data.table=FALSE, na.strings=c("",".","-","NA"),
   colClasses="character", check.names=FALSE) %>%
   mutate(gid_clean = clean_gid(.data[["#FILE"]]))

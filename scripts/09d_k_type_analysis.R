@@ -66,7 +66,9 @@ ktype_df$k_type <- ifelse(is.na(ktype_df$k_type), "No kpsM allele", ktype_df$k_t
 
 cat(sprintf("\n=== K-type distribution in %s ===\n", config$TARGET_ST))
 k_tab <- table(ktype_df$k_type, useNA = "ifany")
-print(data.frame(K_type = names(k_tab), n = as.integer(k_tab), pct = round(as.integer(k_tab)/sum(k_tab)*100, 1)))
+k_dist <- data.frame(k_type = names(k_tab), n = as.integer(k_tab),
+                     pct = round(as.integer(k_tab)/sum(k_tab)*100, 1))
+print(k_dist)
 
 # ---- 3. Merge with metadata ----
 # VirulenceFinder has "Genome" column - need to match with master
@@ -174,13 +176,13 @@ for (s in c("capsule_distribution", "capsule_temporal_all", "capsule_temporal_cl
     existing_sheets[[s]] <- read_xlsx(xlsx_file, sheet = s)
   }, error = function(e) NULL)
 }
-existing[["k_type_distribution"]] <- k_dist
-existing[["k_type_temporal"]] <- k_temporal
-existing[["k_type_temporal_cluster3"]] <- k_temporal_c3
-existing[["k_type_clinical"]] <- k_clin
-existing[["k_type_group_clinical"]] <- k_clin_grp
-existing[["k_type_group_c3_temporal"]] <- k_grp_c3
-existing[["g2_k_type_c3_temporal"]] <- g2_c3
+existing_sheets[["k_type_distribution"]] <- k_dist
+existing_sheets[["k_type_temporal"]] <- k_temporal
+existing_sheets[["k_type_temporal_cluster3"]] <- k_temporal_c3
+existing_sheets[["k_type_clinical"]] <- k_clin
+existing_sheets[["k_type_group_clinical"]] <- k_clin_grp
+existing_sheets[["k_type_group_c3_temporal"]] <- k_grp_c3
+existing_sheets[["g2_k_type_c3_temporal"]] <- g2_c3
 write_xlsx(existing_sheets, xlsx_file)
 cat("\nAppended to:", xlsx_file, "\n")
 

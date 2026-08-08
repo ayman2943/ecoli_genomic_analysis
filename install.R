@@ -14,8 +14,7 @@ cran <- c(
   "tidyverse", "data.table", "readxl", "writexl",
   "ape", "phangorn", "phytools", "vegan", "cluster",
   "broom", "scales", "ggrepel", "patchwork", "gridExtra",
-  "viridis", "janitor", "png"
-)
+  "viridis", "janitor", "png")
 
 bioc <- c("ggtree")
 

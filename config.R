@@ -56,6 +56,12 @@ config$st_vfdb_summary <- function(st = config$TARGET_ST) {
 config$st_card_burden <- function(st = config$TARGET_ST) {
   file.path(config$CARD_VFDB_DIR, "card_summary", paste0(st, ".tsv"))
 }
+config$st_vf_summary <- function(st = config$TARGET_ST) {
+  file.path(config$INPUT_DIR, st, "virulencefinder_summary", "virulencefinder_burden.tsv")
+}
+config$st_resfinder_summary <- function(st = config$TARGET_ST) {
+  file.path(config$INPUT_DIR, st, "resfinder_summary", "resfinder_burden.tsv")
+}
 config$st_out_vf <- function(st = config$TARGET_ST) {
   d <- file.path(config$OUTPUT_DIR, st, "virulencefinder_validation")
   dir.create(d, showWarnings = FALSE, recursive = TRUE); d
