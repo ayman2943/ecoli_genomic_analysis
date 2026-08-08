@@ -1,375 +1,111 @@
-# Usage Guide
+# Usage guide
 
-## Table of Contents
-1. [Quick Start](#quick-start)
-2. [Data Preparation](#data-preparation)
-3. [Running Analyses](#running-analyses)
-4. [Customization](#customization)
-5. [Troubleshooting](#troubleshooting)
+Detailed instructions for each pipeline stage. Run everything from the repo
+root inside the `wgs` conda environment.
 
-## Quick Start
-
-### Minimal Working Example
+## Stage 00 — Metadata filtering
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/ecoli-genomic-analysis.git
-cd ecoli-genomic-analysis
-
-# 2. Install dependencies
-Rscript -e "source('requirements.txt')"
-
-# 3. Prepare your data (see Data Preparation below)
-
-# 4. Run analyses
-Rscript scripts/01_card_analysis.R
-Rscript scripts/02_vfdb_analysis.R
-Rscript scripts/03_plasmid_analysis.R
+export RAW_ENTERO_EXPORT=/path/to/EnteroBase_export.xlsx
+Rscript 00_metadata/filter_metadata.R "$RAW_ENTERO_EXPORT"
 ```
 
-## Data Preparation
+Produces `metadata/{TARGET_ST}_filtered.xlsx` and
+`metadata_matched/matched_{TARGET_ST}.xlsx` containing only rows whose ST
+matches the target lineage. Column requirements: `Uberstrain` or `Name`, plus
+an ST column (`ST` / `Sequence Type` / `MLST`).
 
-### Directory Structure
-
-Your data must follow this structure:
-
-```
-ecoli-genomic-analysis/
-├── data/
-│   ├── card_summary/
-│   │   ├── ST10/
-│   │   │   ├── Escherichia_coli_genome1_card.tsv
-│   │   │   ├── Escherichia_coli_genome2_card.tsv
-│   │   │   └── ...
-│   │   ├── ST131/
-│   │   ├── ST69/
-│   │   ├── ST73/
-│   │   └── ST95/
-│   ├── vfdb_summary/
-│   │   ├── ST10/
-│   │   │   ├── Escherichia_coli_genome1_vfdb.tsv
-│   │   │   └── ...
-│   │   ├── ST131/
-│   │   ├── ST69/
-│   │   ├── ST73/
-│   │   └── ST95/
-│   ├── metadata/
-│   │   ├── ST10_filtered.xlsx
-│   │   ├── ST131_filtered.xlsx
-│   │   ├── ST69_filtered.xlsx
-│   │   ├── ST73_filtered.xlsx
-│   │   └── ST95_filtered.xlsx
-│   ├── plasmid_CARD_merged.tsv
-│   └── plasmid_VFDB_merged.tsv
-```
-
-### File Formats
-
-#### 1. CARD Summary Files (.tsv)
-
-Each file should contain:
-- Gene presence/absence or counts
-- One row per genome
-- Columns: Gene names (e.g., `aac(3)-IIa`, `blaCTX-M-15`)
-
-Example:
-```
-aac(3)-IIa	aac(6')-Ib-cr	blaCTX-M-15	sul1	tet(A)
-1	0	1	1	0
-0	1	1	0	1
-```
-
-#### 2. VFDB Summary Files (.tsv)
-
-Similar format to CARD, but with virulence genes:
-- Columns: VF gene names (e.g., `fimH`, `iucD`, `ompA`)
-
-#### 3. Metadata Files (.xlsx)
-
-Required columns:
-- `Name` or `Genome_ID` - Must match genome IDs in summary files
-- `Collection Year` or `Collection_Year` - Numeric year
-- `Country` - Country of isolation
-- `Continent` - Geographic continent
-- `Source Niche` or `Source_Niche` - Source category
-
-Optional columns:
-- `Source_Category` - Broader categorization
-- `Host` - Host organism
-- `Clinical_Status` - "Clinical" or "Non-clinical"
-
-Example:
-```
-Name                    Collection_Year  Country        Continent      Source_Niche
-Sample_001              2018            USA            North America  Human_Clinical
-Sample_002              2019            UK             Europe         Animal
-Sample_003              2020            India          Asia           Environmental
-```
-
-#### 4. Plasmid Files (.tsv)
-
-Merged plasmid data for all STs:
-- `plasmid_CARD_merged.tsv` - Plasmid ARG data
-- `plasmid_VFDB_merged.tsv` - Plasmid VF data
-
-Required columns:
-- `Name` - Genome identifier
-- `ST` - Sequence type (ST10, ST131, etc.)
-- `Collection Year` - Numeric year
-- `Country`, `Continent` - Geographic info
-- Additional columns: Gene presence/absence
-
-## Running Analyses
-
-### 1. AMR Analysis
+## Stage 01 — Download assemblies
 
 ```bash
-Rscript scripts/01_card_analysis.R
+python3 01_download/download_assemblies.py metadata/ST69_filtered.xlsx ST69
+gzip -d ST69/*.fna.gz
 ```
 
-**Outputs:**
-- `outputs/R_analysis_outputs/plots/` - 50+ publication-quality figures
-- `outputs/R_analysis_outputs/tables/AMR_COMPLETE_SUMMARY.xlsx` - 21 worksheets
-- `outputs/R_analysis_outputs/tables/Publication_Tables_CARD.docx` - Formatted tables
+- Resolves each row to an assembly via GCF_/GCA_ accession, BioSample, or SRA
+  (in that order).
+- Downloads by FTP (fast) with `datasets` fallback.
+- Requires the NCBI `datasets` CLI and Entrez tools (`esearch`/`elink`/
+  `efetch`/`xtract`) — both in `environment.yml`.
+- Set `DOWNLOAD_ASSUME_YES=1` to skip the interactive confirmation.
+- Without `NCBI_API_KEY` the downloader runs at 3 req/sec (slower).
 
-**Key Analyses:**
-- Temporal trends (Mann-Kendall)
-- ST-specific enrichment (log2 fold-change)
-- Drug class analysis
-- Clinical vs. non-clinical comparison
-- Diversity metrics (Shannon, NMDS)
-- Co-occurrence networks
+## Stage 02 — Annotation
 
-**Runtime:** ~15-30 minutes (depends on dataset size)
-
-### 2. Virulence Factor Analysis
+### abricate (VFDB + CARD)
 
 ```bash
-Rscript scripts/02_vfdb_analysis.R
+bash 02_annotation/run_abricate.sh ST69        # or "all" for the 5 STs
 ```
 
-**Outputs:**
-- `outputs/VFDB_analysis_outputs/plots/` - VF visualizations
-- `outputs/VFDB_analysis_outputs/tables/VFDB_COMPLETE_SUMMARY.xlsx`
+Writes per-genome tables to `card_vfdb_result/{vfdb,card}/{ST}/` and
+per-ST summaries to `card_vfdb_result/{vfdb,card}_summary/{ST}*.tsv`.
+Thresholds: 80% identity, 80% coverage. Resumable (skips existing outputs).
 
-**Key Analyses:**
-- VF class composition
-- Gene prevalence profiles
-- Temporal dynamics
-- Clinical enrichment per ST
-- Shannon diversity
-
-**Runtime:** ~10-20 minutes
-
-### 3. Plasmid Analysis
+### VirulenceFinder + ResFinder
 
 ```bash
-Rscript scripts/03_plasmid_analysis.R
+bash 02_annotation/run_vf_resfinder.sh ST69
 ```
 
-**Outputs:**
-- `outputs/plasmid_outputs/` - 5 key visualizations
-- `plasmid_summary.xlsx` - Statistical summaries
+Writes `analysis_results/{ST}/virulence/{genome}_VF.tsv` and
+`analysis_results/{ST}/resfinder/{genome}_RF.txt`. Databases default to
+`$HOME/databases/{virulencefinder_db,resfinder_db}` (override via `VF_DB`,
+`RF_DB`).
 
-**Key Analyses:**
-- Plasmid ARG/VF burden
-- MDR plasmid prevalence
-- High-risk gene detection (ESBL, carbapenemases, MCR)
-- ARG-VF correlation
-
-**Runtime:** ~5-10 minutes
-
-## Customization
-
-### Modifying Sequence Types
-
-Edit the `STs` variable in each main script:
-
-```r
-# Default
-STs <- c("ST10", "ST131", "ST69", "ST73", "ST95")
-
-# Custom
-STs <- c("ST101", "ST127", "ST405")
-```
-
-### Changing Output Directories
-
-Modify directory paths in main scripts:
-
-```r
-OUT_DIR <- "outputs/custom_output_directory"
-```
-
-### Adjusting Statistical Thresholds
-
-Edit in respective module files:
-
-```r
-# Example: significance level
-alpha <- 0.01  # Default is 0.05
-
-# Example: minimum prevalence for gene inclusion
-min_prevalence <- 0.1  # 10% instead of default 5%
-```
-
-### Custom Color Palettes
-
-Modify in `scripts/utils/common_utils.R`:
-
-```r
-ST_COLORS <- c(
-  "ST10"  = "#YOUR_COLOR_1",
-  "ST131" = "#YOUR_COLOR_2",
-  # ... etc
-)
-```
-
-### Plot Dimensions
-
-Adjust in individual module files or globally:
-
-```r
-# In save_plot() calls
-save_plot(plot, "name", width = 14, height = 10)  # Default: 12 x 7
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Metadata Matching Failures
-
-**Symptom:** Low match rates (<90%)
-
-**Solutions:**
-- Check genome ID format in summary files vs. metadata
-- Verify column names in metadata (`Name` vs `Genome_ID`)
-- Review `batch_match()` strategies in `scripts/utils/metadata_matching.R`
-- Add custom matching patterns if needed
-
-#### 2. Missing Packages
-
-**Symptom:** `Error: package 'X' is not installed`
-
-**Solution:**
-```r
-install.packages("package_name")
-# or for all packages:
-source("requirements.txt")
-```
-
-#### 3. Memory Issues
-
-**Symptom:** `Error: cannot allocate vector of size X`
-
-**Solutions:**
-- Reduce parallel cores: `n_cores <- 2`
-- Process subsets of data
-- Increase system RAM allocation
-- Use `data.table` instead of `data.frame` for large datasets
-
-#### 4. Plot Rendering Issues
-
-**Symptom:** Plots not displaying or garbled text
-
-**Solutions:**
-- Ensure graphics device is available
-- Update graphics packages: `update.packages(c("ggplot2", "grid"))`
-- Check font availability on system
-- Use `cairo_pdf` device for better font support
-
-#### 5. File Path Issues (Windows)
-
-**Symptom:** `Error: cannot open the connection`
-
-**Solutions:**
-- Use forward slashes: `data/card_summary/` not `data\card_summary\`
-- Or use `file.path()`: `file.path("data", "card_summary")`
-- Set working directory: `setwd("path/to/project")`
-
-### Getting Help
-
-1. Check existing [GitHub Issues](https://github.com/yourusername/ecoli-genomic-analysis/issues)
-2. Review error messages carefully
-3. Run with verbose output: `options(verbose = TRUE)`
-4. Open a new issue with:
-   - Error message
-   - Session info: `sessionInfo()`
-   - Minimal reproducible example
-
-## Advanced Usage
-
-### Running Specific Modules Only
-
-```r
-# Load utilities
-source("scripts/utils/common_utils.R")
-source("scripts/utils/metadata_matching.R")
-
-# Run only temporal analysis
-source("scripts/modules/amr/05_temporal_analysis.R")
-temporal_results <- run_temporal_analysis(data, STs, OUT_DIR)
-```
-
-### Batch Processing Multiple Datasets
+### Build summary matrices
 
 ```bash
-#!/bin/bash
-# batch_analysis.sh
-
-for dataset in dataset1 dataset2 dataset3; do
-  echo "Processing $dataset..."
-  cd $dataset
-  Rscript ../scripts/01_card_analysis.R
-  Rscript ../scripts/02_vfdb_analysis.R
-  Rscript ../scripts/03_plasmid_analysis.R
-  cd ..
-done
+Rscript 02_annotation/build_finder_summaries.R . finder_result
 ```
 
-### Parallel Execution
+Parses every VF/ResFinder output into:
+- `virulencefinder_summary/{binary_matrix,burden,gene_frequency,long}.tsv`
+- `resfinder_summary/{binary_matrix,burden,gene_frequency,long}.tsv`
+- `logs/summary_qc.tsv`
 
-```r
-# Use all available cores
-n_cores <- parallel::detectCores()
+These are the matrices consumed by every downstream analysis script.
 
-# Or specify manually
-n_cores <- 8
+## Stage 03 — Pangenome + core tree
+
+```bash
+bash 03_pangenome/run_pangenome_tree.sh ST69            # all genomes
+bash 03_pangenome/run_pangenome_tree.sh ST10 500        # stratified subsample
 ```
 
-## Performance Optimization
+1. Prokka annotation (`annotation/annotations_{ST}/`)
+2. PPanGGOLiN workflow (`pangenome_output/ppanggolin_raw/`)
+3. Core-genome MSA export + trimAL
+4. IQ-TREE (`-m MFP -bb 1000`) → `{ST}_bootstrap.treefile` (copied to root)
+5. Pangenome table export → `pangenome_output/ppanggolin_output/`
 
-### For Large Datasets (>10,000 genomes)
+RAM: ≥32 GB recommended for >1,000 genomes.
 
-1. **Use data.table for loading:**
-```r
-library(data.table)
-data <- fread("large_file.tsv")
+## Stage 04 — R analysis
+
+```bash
+Rscript run_pipeline.R ST69            # full
+Rscript run_pipeline.R ST69 --quick    # clustering + tree mapping only
+Rscript run_pipeline.R ST69 --from 09e # resume at a given script
+Rscript run_pipeline.R ST69 --skip 15 --skip 16   # skip tree figures
 ```
 
-2. **Subset by ST first:**
-```r
-data_ST10 <- data %>% filter(ST == "ST10")
-# Process ST10 separately
-```
+The runner sources `config.R` (paths from env, see README) and executes the
+numbered scripts in `scripts/` in dependency order. Optional scripts (tree
+figures requiring `ggtree`) are skipped gracefully if the package is absent.
 
-3. **Reduce visualization complexity:**
-```r
-# Sample for visualization
-data_sample <- data %>% sample_n(5000)
-```
+### Outputs
 
-4. **Use parallel processing:**
-```r
-library(parallel)
-results <- mclapply(gene_list, analyze_gene, mc.cores = n_cores)
-```
+- `output/{ST}/virulencefinder_validation/` — VF-based results
+- `output/{ST}/vfdb_analysis/` — VFDB-based results
+- `output/{ST}/figures/` — all manuscript figures
+- `output/{ST}/...` — cluster assignments, K-type tables, enrichment results
 
-## Output Interpretation
+## Resuming / partial runs
 
-See [docs/OUTPUT_GUIDE.md](OUTPUT_GUIDE.md) for detailed explanation of:
-- Statistical test interpretations
-- Plot descriptions
-- Table contents
-- How to use results in publications
+Everything is resumable:
+
+- Download: existing `.fna.gz` are skipped.
+- abricate / VF / ResFinder: existing per-genome outputs are skipped.
+- R analysis: use `--from <script>` to resume, or `--skip` to omit specific
+  scripts (e.g. tree figures).

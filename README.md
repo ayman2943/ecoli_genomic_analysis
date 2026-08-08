@@ -1,288 +1,215 @@
-# E. coli Genomic Analysis Pipeline
+# E. coli ExPEC Genomic Analysis Pipeline
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![R Version](https://img.shields.io/badge/R-%E2%89%A5%204.0.0-blue)](https://www.r-project.org/)
 
-A comprehensive R-based pipeline for analyzing antimicrobial resistance (AMR), virulence factors (VF), and plasmid-associated genes in *Escherichia coli* genome sequences across multiple sequence types (ST10, ST131, ST69, ST73, ST95).
+End-to-end pipeline for the population genomics of extraintestinal pathogenic
+*Escherichia coli* (ExPEC) across five sequence types (ST10, ST69, ST73, ST95,
+ST131). Reproduces every analysis and figure in the accompanying manuscript.
 
-## 📋 Table of Contents
+```
+EnteroBase metadata ──▶ download assemblies ──▶ abricate VFDB/CARD
+    + VirulenceFinder + ResFinder ──▶ summary matrices ──▶ pangenome + core tree
+    ──▶ shell-gene clustering ──▶ tree mapping ──▶ virulence/resistance analysis
+    ──▶ temporal trends (Mann-Kendall) ──▶ clinical enrichment ──▶ figures
+```
+
+## Table of contents
 
 - [Overview](#overview)
-- [Features](#features)
 - [Installation](#installation)
-- [Usage](#usage)
-- [Pipeline Components](#pipeline-components)
-- [Output](#output)
-- [Dependencies](#dependencies)
-- [Citation](#citation)
+- [Quick start](#quick-start)
+- [Pipeline stages](#pipeline-stages)
+- [Directory layout](#directory-layout)
+- [Reproducing the manuscript](#reproducing-the-manuscript)
+- [Configuration](#configuration)
+- [Outputs](#outputs)
+- [FAQ / troubleshooting](#faq--troubleshooting)
 - [License](#license)
-- [Contributing](#contributing)
 
-## 🔬 Overview
+## Overview
 
-This pipeline integrates three major analytical components:
+This pipeline analyses a genome collection of ExPEC lineages to dissect
+temporal trends, cluster structure, clinical enrichment, capsule (K-type)
+diversity, and antimicrobial-resistance/virulence content. All thresholds are
+80% identity / 80% coverage unless stated otherwise.
 
-1. **AMR Analysis (CARD)** - Comprehensive Antibiotic Resistance Database analysis
-2. **Virulence Factor Analysis (VFDB)** - Virulence Factor Database profiling
-3. **Plasmid Analysis** - Plasmid-borne resistance and virulence characterization
+Key analyses:
 
-The pipeline performs publication-quality statistical analyses including temporal trends, ST-specific enrichment, clinical vs. non-clinical comparisons, and multi-dimensional visualizations.
+- **Shell-gene clustering** — PPanGGOLiN shell genes projected onto VFDB and
+  VirulenceFinder content; cluster assignment per genome.
+- **Tree mapping** — cluster labels mapped onto the core-genome
+  phylogeny (`{ST}_bootstrap.treefile` from IQ-TREE).
+- **Virulence & resistance** — per-cluster enrichment, temporal dynamics,
+  Mann-Kendall trend tests for VFDB, VirulenceFinder, CARD and ResFinder.
+- **ST10 decomposition** — compositional drivers of expansion within ST10.
+- **Clinical enrichment** — clinical vs non-clinical comparisons with
+  sensitivity analysis.
+- **Capsule (K-type) classification** — group 2/group 3 capsule assignment
+  based on `kpsM` allele classes from the VirulenceFinder binary matrix.
+- **Validation** — long-read assemblies, KPS operon structure, RGP context,
+  plasmid context.
+- **Figures** — all manuscript figures (`output/figures/`).
 
-## ✨ Features
+## Installation
 
-### AMR Analysis
-- Multi-strategy genome ID reconciliation with metadata
-- Temporal trend analysis (Mann-Kendall tau, linear models)
-- ST-specific gene enrichment (log2 fold-change, Fisher's exact test)
-- Drug class-specific analyses (aminoglycosides, β-lactams)
-- Clinical vs. non-clinical source comparisons
-- MDR (Multi-Drug Resistance) profiling
-- Co-occurrence network analysis
-- Diversity metrics (Shannon, NMDS, PERMANOVA)
-
-### Virulence Factor Analysis
-- VF class composition and temporal dynamics
-- Gene prevalence profiling across STs
-- Shannon diversity of VF profiles
-- Clinical enrichment analysis per ST
-- Co-occurrence correlation matrices
-- Statistical frameworks (Kruskal-Wallis, Fisher's exact, logistic regression)
-
-### Plasmid Analysis
-- Plasmid-borne ARG burden tracking
-- MDR plasmid prevalence
-- High-risk gene detection (ESBL, carbapenemases, MCR)
-- VF-ARG correlation on plasmids
-- Temporal trend visualization
-
-## 🚀 Installation
-
-### Prerequisites
-
-- R (≥ 4.0.0)
-- RStudio (recommended)
-
-### Clone the Repository
+### 1. Conda environment
 
 ```bash
-git clone https://github.com/yourusername/ecoli-genomic-analysis.git
-cd ecoli-genomic-analysis
+conda env create -f environment.yml
+conda activate wgs
 ```
 
-### Install Dependencies
+This provides abricate, prokka, ppanggolin, iqtree, trimal, seqtk,
+VirulenceFinder, ResFinder and the NCBI `datasets`/Entrez tools.
 
-```r
-# Install CRAN packages
-install.packages(c(
-  "tidyverse", "readxl", "writexl", "scales", "RColorBrewer",
-  "viridis", "ggpubr", "gridExtra", "patchwork", "ggsci",
-  "data.table", "parallel", "stringi", "ggridges", "ggtext",
-  "broom", "ggrepel", "vegan", "MASS", "rstatix", "igraph",
-  "ggraph", "tidygraph", "corrplot", "flextable", "officer",
-  "epitools", "tidytext", "colorspace", "pheatmap"
-))
-```
+### 2. Databases
 
-## 📊 Usage
-
-### Quick Start
-
-1. **Prepare your data structure:**
-
-```
-project_root/
-├── card_summary/          # CARD analysis TSV files
-│   ├── ST10/
-│   ├── ST131/
-│   ├── ST69/
-│   ├── ST73/
-│   └── ST95/
-├── vfdb_summary/          # VFDB analysis TSV files
-│   ├── ST10/
-│   ├── ST131/
-│   ├── ST69/
-│   ├── ST73/
-│   └── ST95/
-├── metadata/              # Metadata Excel files
-│   ├── ST10_filtered.xlsx
-│   ├── ST131_filtered.xlsx
-│   ├── ST69_filtered.xlsx
-│   ├── ST73_filtered.xlsx
-│   └── ST95_filtered.xlsx
-├── plasmid_CARD_merged.tsv
-└── plasmid_VFDB_merged.tsv
-```
-
-2. **Run the analyses:**
+Download the reference databases (all FASTA-based, no config needed):
 
 ```bash
-# AMR Analysis
-Rscript scripts/01_card_analysis.R
-
-# Virulence Factor Analysis
-Rscript scripts/02_vfdb_analysis.R
-
-# Plasmid Analysis
-Rscript scripts/03_plasmid_analysis.R
+mkdir -p ~/databases
+cd ~/databases
+# VirulenceFinder
+git clone https://bitbucket.org/genomicepidemiology/virulencefinder_db.git
+# ResFinder
+git clone https://bitbucket.org/genomicepidemiology/resfinder_db.git
+# abricate databases are installed with the package
+abricate --setupdb
 ```
 
-### Advanced Usage
+Set `VF_DB` / `RF_DB` in `config/pipeline_config.sh` if you placed them
+elsewhere.
 
-See [docs/USAGE.md](docs/USAGE.md) for detailed parameter configuration and customization options.
+### 3. R packages
 
-## 🔧 Pipeline Components
-
-### 1. AMR Analysis (`scripts/01_card_analysis.R`)
-
-**Modules:**
-- `01_metadata_matching.R` - Multi-strategy ID reconciliation
-- `02_data_loading.R` - CARD data import and validation
-- `03_base_visualizations.R` - Core AMR plots
-- `04_enrichment_analysis.R` - ST-specific gene enrichment
-- `05_temporal_analysis.R` - Time-series statistical models
-- `06_clinical_comparison.R` - Clinical vs. non-clinical analysis
-- `07_diversity_analysis.R` - Shannon, NMDS, PERMANOVA
-- `08_cooccurrence_network.R` - Gene co-occurrence patterns
-- `09_statistical_models.R` - GLM, logistic regression
-- `10_export_tables.R` - Summary table generation
-
-### 2. Virulence Factor Analysis (`scripts/02_vfdb_analysis.R`)
-
-**Modules:**
-- `01_vfdb_loading.R` - VFDB data import
-- `02_vf_class_analysis.R` - Class composition profiling
-- `03_prevalence_analysis.R` - Gene prevalence calculations
-- `04_temporal_vf_trends.R` - VF temporal dynamics
-- `05_clinical_vf_comparison.R` - Clinical enrichment per ST
-- `06_diversity_metrics.R` - VF profile diversity
-- `07_statistical_tests.R` - Comprehensive statistical framework
-- `08_visualizations.R` - Publication-quality plots
-
-### 3. Plasmid Analysis (`scripts/03_plasmid_analysis.R`)
-
-**Modules:**
-- `01_plasmid_loading.R` - Plasmid data processing
-- `02_arg_burden.R` - ARG burden quantification
-- `03_highrisk_detection.R` - ESBL/carbapenemase/MCR detection
-- `04_vf_plasmid.R` - Plasmid-borne virulence factors
-- `05_correlation_analysis.R` - ARG-VF co-occurrence
-
-## 📈 Output
-
-### Directory Structure
-
-```
-outputs/
-├── R_analysis_outputs/
-│   ├── plots/                    # PNG visualizations (300 DPI)
-│   │   ├── M01-M05_*.png        # Metadata plots
-│   │   ├── 01-10_*.png          # Base AMR visualizations
-│   │   ├── A1-A3_*.png          # ST enrichment
-│   │   ├── B1-B3_*.png          # Aminoglycoside analysis
-│   │   ├── C1-C3_*.png          # β-lactam analysis
-│   │   ├── D1-D6b_*.png         # Clinical comparisons
-│   │   ├── E1-E2_*.png          # Diversity metrics
-│   │   ├── F1-F2_*.png          # Co-occurrence networks
-│   │   └── G1-G2_*.png          # Statistical models
-│   └── tables/                   # Statistical outputs
-│       ├── AMR_COMPLETE_SUMMARY.xlsx  # 21 worksheets
-│       ├── Publication_Tables_CARD.docx
-│       └── *.csv                # Individual CSV tables
-├── VFDB_analysis_outputs/
-│   ├── plots/
-│   │   ├── V01-V15_*.png        # VF visualizations
-│   │   └── combined_*.png       # Multi-panel figures
-│   ├── tables/
-│   │   └── VFDB_COMPLETE_SUMMARY.xlsx
-│   └── stats/                    # Statistical test results
-└── plasmid_outputs/
-    ├── P1-P5_*.png              # Plasmid visualizations
-    └── plasmid_summary.xlsx
+```bash
+Rscript install.R
 ```
 
-### Key Outputs
+Installs all CRAN packages plus `ggtree` (Bioconductor, used only by the two
+optional tree-figure scripts).
 
-- **Publication Tables**: Formatted Word/Excel documents with Table 1 (study population) and Table 2 (gene prevalence)
-- **Statistical Summaries**: Comprehensive Excel workbooks with 20+ analysis sheets
-- **High-Resolution Plots**: 300 DPI PNG images for publication
-- **CSV Exports**: Individual tables for external analysis
+## Quick start
 
-## 📦 Dependencies
+1. Place your EnteroBase export (`RAW_ENTERO_EXPORT`) where the pipeline can
+   read it and set the variable in `config/pipeline_config.sh`.
+2. Optionally export `NCBI_API_KEY` to speed up downloads.
 
-### Core Packages
-- `tidyverse` (≥ 2.0.0) - Data manipulation and visualization
-- `data.table` (≥ 1.14.0) - High-performance data processing
-- `ggplot2` (≥ 3.4.0) - Advanced plotting
-
-### Statistical Analysis
-- `vegan` - Ecological diversity metrics
-- `MASS` - Statistical modeling
-- `rstatix` - Statistical tests
-- `broom` - Model tidying
-- `epitools` - Epidemiological tools
-
-### Visualization
-- `patchwork` - Multi-panel plot composition
-- `ggpubr` - Publication-ready themes
-- `viridis` / `RColorBrewer` - Color palettes
-- `ggraph` / `igraph` - Network visualization
-- `corrplot` - Correlation matrices
-- `pheatmap` - Heatmap generation
-
-### Reporting
-- `flextable` / `officer` - Word document generation
-- `writexl` / `readxl` - Excel I/O
-
-See [requirements.txt](requirements.txt) for complete version specifications.
-
-## 📚 Citation
-
-If you use this pipeline in your research, please cite:
-
-```bibtex
-@software{ecoli_genomic_analysis_2025,
-  author = {Your Name},
-  title = {E. coli Genomic Analysis Pipeline},
-  year = {2025},
-  url = {https://github.com/yourusername/ecoli-genomic-analysis},
-  version = {1.0.0}
-}
+```bash
+bash run_all.sh ST69                  # full run for ST69
+bash run_all.sh ST69 --annotate       # skip download, just run tools + summaries
+bash run_all.sh ST69 --analyze        # R analysis + figures only
 ```
 
-## 📄 License
+Or run stages manually:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+# 01 filter metadata
+Rscript 00_metadata/filter_metadata.R "$RAW_ENTERO_EXPORT"
+# 02 download (requires NCBI datasets + Enterz tools)
+python3 01_download/download_assemblies.py metadata/ST69_filtered.xlsx ST69
+gzip -d ST69/*.fna.gz
+# 03-04 annotation
+bash 02_annotation/run_abricate.sh ST69
+bash 02_annotation/run_vf_resfinder.sh ST69
+# 05 summary matrices
+Rscript 02_annotation/build_finder_summaries.R . finder_result
+# 06 pangenome + tree
+bash 03_pangenome/run_pangenome_tree.sh ST69
+# 07 analysis + figures
+Rscript run_pipeline.R ST69
+```
 
-## 🤝 Contributing
+## Pipeline stages
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+| # | Script | Purpose |
+|---|--------|---------|
+| 00 | `00_metadata/filter_metadata.R` | Filter EnteroBase export to target ST |
+| 01 | `01_download/download_assemblies.py` | Parallel NCBI download of assemblies |
+| 02 | `02_annotation/run_abricate.sh` | abricate VFDB + CARD (80/80) |
+| 03 | `02_annotation/run_vf_resfinder.sh` | VirulenceFinder + ResFinder (80/80) |
+| 04 | `02_annotation/build_finder_summaries.R` | binary/burden/frequency matrices |
+| 05 | `03_pangenome/run_pangenome_tree.sh` | Prokka → PPanGGOLiN → MSA → trimAL → IQ-TREE |
+| 06 | `run_pipeline.R` | All analyses + figures (see below) |
 
-### Development Guidelines
+`run_pipeline.R` runs the numbered scripts in `scripts/` in dependency order:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- `02b`–`02c` shell clustering (VFDB / VF)
+- `03c`–`03d` tree mapping (VFDB / VF)
+- `04a`–`04b` virulence analysis + cluster genes
+- `05a`–`05c` resistance analysis (CARD + ResFinder)
+- `06a` temporal trends + Mann-Kendall
+- `07a`–`07b` ST10 decomposition
+- `08` clinical enrichment
+- `09a`–`09e` sensitivity, capsule classification/comparison, K-types, summary stats
+- `10a`–`10g` validation (KPS, RGP, plasmid, allelic conversion, long reads)
+- `11`–`22`, `99` figures (all manuscript figures + supplementary)
 
-## 🐛 Issues
+## Directory layout
 
-Found a bug or have a feature request? Please open an issue on [GitHub Issues](https://github.com/yourusername/ecoli-genomic-analysis/issues).
+```
+Ecoli_genomic_analysis/
+├── 00_metadata/        metadata filtering
+├── 01_download/        assembly downloader (sanitized, API key via env)
+├── 02_annotation/      abricate, VirulenceFinder/ResFinder, summary builder
+├── 03_pangenome/       Prokka / PPanGGOLiN / IQ-TREE pipeline
+├── config/             pipeline_config.sh (site settings)
+├── scripts/            canonical numbered R analysis scripts (manuscript code)
+├── config.R            R configuration (env-driven, see below)
+├── run_pipeline.R      master R runner
+├── run_all.sh          end-to-end orchestrator
+├── environment.yml     conda environment
+├── requirements.txt    python deps
+├── install.R           R package installer
+└── docs/               detailed structure & usage docs
+```
 
-## 👥 Authors
+## Reproducing the manuscript
 
-- **Your Name** - *Initial work* - [YourGitHub](https://github.com/yourusername)
+All results in the manuscript (tables + figures) come from the R scripts in
+`scripts/`. Running `Rscript run_pipeline.R ST69` from the repo root
+regenerates everything under `output/`. The three supplementary workbook
+sheets are produced by scripts `09d` (K-type assignment) and `09e`
+(summary statistics); the accession sheet is built from
+`metadata_matched/matched_{ST}.xlsx`.
 
-## 🙏 Acknowledgments
+## Configuration
 
-- CARD Database - Comprehensive Antibiotic Resistance Database
-- VFDB - Virulence Factor Database
-- The R community for excellent statistical packages
+All settings are environment variables with defaults in `config.R`:
 
-## 📞 Contact
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TARGET_ST` | `ST69` | Lineage to analyse |
+| `ECOLI_BASE_DIR` | `getwd()` | Working directory containing inputs |
+| `ECOLI_PANGENOME_DIR` | — | External pangenome dir for non-ST69 lineages |
+| `NCBI_API_KEY` | — | NCBI key to speed downloads (never committed) |
+| `JOBS` | 6 | parallel abricate jobs |
+| `CPU` | 8 | prokka / ppanggolin threads |
+| `PPANG_RAM` | 16 | PPanGGOLiN RAM (GB) |
+| `IQTREE_MEM` | 14G | IQ-TREE memory |
 
-For questions or collaboration inquiries, please contact: your.email@example.com
+## Outputs
 
----
+- `finder_result/` — VirulenceFinder/ResFinder binary, burden, gene-frequency,
+  long-format matrices + QC.
+- `card_vfdb_result/` — abricate VFDB/CARD per-genome tables and summaries.
+- `output/{ST}/` — per-analysis tables (virulence, resistance, temporal,
+  enrichment, K-type, clusters).
+- `output/{ST}/figures/` — all manuscript figures.
+- `{ST}_bootstrap.treefile` — core-genome phylogeny from IQ-TREE.
 
-**Last Updated:** March 2025
+## FAQ / troubleshooting
+
+- **`ggtree` not installed** — tree figure scripts (`15_`, `16_`) are marked
+  optional and skipped automatically; run `Rscript install.R` to add ggtree.
+- **Downloader asks for confirmation** — set `DOWNLOAD_ASSUME_YES=1` for
+  unattended runs.
+- **PPanGGOLiN out of memory** — reduce `N_GENOMES` (subsample) or lower
+  `PPANG_RAM`; ≥32 GB recommended for >1,000 genomes.
+- **No ST directories found** — the summary builder (`build_finder_summaries.R`)
+  expects `analysis_results/{ST}/virulence|resfinder/`; run
+  `run_vf_resfinder.sh` first.
+
+## License
+
+MIT — see `LICENSE`.

@@ -1,0 +1,57 @@
+# Conda environment for the E. coli ExPEC genomic pipeline.
+#
+# Create with:
+#   conda env create -f environment.yml
+#   conda activate wgs
+#
+# R packages are installed separately via install.R (R is included here for
+# convenience; install.packages / BiocManager are needed for the R deps).
+name: wgs
+
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # ---- Core bioinformatics ----
+  - python>=3.10
+  - abricate
+  - prokka
+  - ppanggolin
+  - iqtree
+  - trimal
+  - seqtk
+  - parallel
+  - ncbi-datasets-cli
+  - ncbi-entrez-direct        # esearch / elink / efetch / xtract
+
+  # ---- Annotation databases ----
+  - resfinder
+  - sra-tools
+
+  # ---- R ----
+  - r-base>=4.2
+  - r-tidyverse
+  - r-data.table
+  - r-readxl
+  - r-writexl
+  - r-ape
+  - r-phangorn
+  - r-phytools
+  - r-vegan
+  - r-cluster
+  - r-broom
+  - r-scales
+  - r-ggrepel
+  - r-patchwork
+  - r-gridExtra
+  - r-viridis
+  - r-viridisLite
+  - r-janitor
+  - r-png
+
+  # ---- VirulenceFinder (NCBI/CGE python package) ----
+  - pip
+  - pip:
+      - https://bitbucket.org/genomicepidemiology/virulencefinder/downloads/virulencefinder-2.0.4-py3-none-any.whl
