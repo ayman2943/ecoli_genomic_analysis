@@ -213,3 +213,8 @@ All settings are environment variables with defaults in `config.R`:
 ## License
 
 MIT — see `LICENSE`.
+
+## Citation
+
+If you use this pipeline in your work, please cite the associated manuscript
+(after publication) and link to this repository.
