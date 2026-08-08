@@ -14,7 +14,8 @@ options(stringsAsFactors = FALSE)
 # =============================================================================
 # BASE_DIR: directory containing the {ST}/ analysis_results folders
 #           (i.e. the folder that holds ST10/, ST69/, ... with virulence/ and
-#           resfinder/ subfolders). For this pipeline that is the repo root.
+#           resfinder/ subfolders). For this pipeline that is the
+#           analysis_results/ folder produced by run_vf_resfinder.sh.
 # OUT_DIR : where the summary matrices are written. Defaults to the
 #           finder_result/ folder expected by config.R. Override with:
 #           Rscript build_finder_summaries.R <base_dir> <out_dir>

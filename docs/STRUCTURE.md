@@ -58,4 +58,6 @@ Ecoli_genomic_analysis/
 | `finder_result/` | `build_finder_summaries.R` | `config.R` (`INPUT_DIR`) |
 | `pangenome_output/` | `03_pangenome/` | `config.R` (`PANGENOME_DIR`) |
 | `{ST}_bootstrap.treefile` | `03_pangenome/` | `config.R` (`TREE_FILE`) |
-| `output/{ST}/` | `run_pipeline.R` | manuscript tables + figures |
+| `output/{ST}/` | `run_pipeline.R` | manuscript tables (virulence, resistance, K-type, clusters) |
+| `output/figures_*/` | scripts `11`–`22` | manuscript figure panels |
+| `output/combined_figures/` | script `99` | combined multi-page `All_Figures.pdf` |

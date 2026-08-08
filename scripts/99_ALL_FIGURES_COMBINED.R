@@ -106,6 +106,7 @@ for (st in st_list) {
   vf_file <- config$st_vf_summary(st)
   if (file.exists(vf_file)) {
     vf <- read_tsv(vf_file, show_col_types = FALSE) %>%
+      filter(.data[["st"]] == st) %>%
       rename(genome_id = genome, burden = virulencefinder_burden) %>%
       mutate(genome_id = make_genome_id(genome_id), burden = as.numeric(burden)) %>%
       select(genome_id, burden) %>% inner_join(meta, by = "genome_id") %>%
@@ -118,6 +119,7 @@ for (st in st_list) {
   resf_file <- config$st_resfinder_summary(st)
   if (file.exists(resf_file)) {
     r <- read_tsv(resf_file, show_col_types = FALSE) %>%
+      filter(.data[["st"]] == st) %>%
       rename(genome_id = genome, burden = resfinder_burden) %>%
       mutate(genome_id = make_genome_id(genome_id), burden = as.numeric(burden)) %>%
       select(genome_id, burden) %>% inner_join(meta, by = "genome_id") %>%

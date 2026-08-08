@@ -92,7 +92,7 @@ fi
 # ---- 05. Finder summary matrices ----
 if [ "$MODE" = "full" ] || [ "$MODE" = "--annotate" ]; then
   echo "[run_all] 05: building finder_result/ summary matrices"
-  Rscript 02_annotation/build_finder_summaries.R "." "finder_result"
+  Rscript 02_annotation/build_finder_summaries.R "analysis_results" "finder_result"
 fi
 
 if [ "$MODE" = "--annotate" ]; then exit 0; fi

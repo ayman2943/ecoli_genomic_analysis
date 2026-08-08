@@ -56,10 +56,10 @@ Writes `analysis_results/{ST}/virulence/{genome}_VF.tsv` and
 ### Build summary matrices
 
 ```bash
-Rscript 02_annotation/build_finder_summaries.R . finder_result
+Rscript 02_annotation/build_finder_summaries.R analysis_results finder_result
 ```
 
-Parses every VF/ResFinder output into:
+Parses every VF/ResFinder output (under `analysis_results/{ST}/`) into:
 - `virulencefinder_summary/{binary_matrix,burden,gene_frequency,long}.tsv`
 - `resfinder_summary/{binary_matrix,burden,gene_frequency,long}.tsv`
 - `logs/summary_qc.tsv`
@@ -98,7 +98,8 @@ figures requiring `ggtree`) are skipped gracefully if the package is absent.
 
 - `output/{ST}/virulencefinder_validation/` — VF-based results
 - `output/{ST}/vfdb_analysis/` — VFDB-based results
-- `output/{ST}/figures/` — all manuscript figures
+- `output/figures_*/` — manuscript figure panels
+- `output/combined_figures/All_Figures.pdf` — combined multi-page PDF (script `99`)
 - `output/{ST}/...` — cluster assignments, K-type tables, enrichment results
 
 ## Resuming / partial runs

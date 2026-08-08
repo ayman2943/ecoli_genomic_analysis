@@ -48,7 +48,7 @@ Key analyses:
   based on `kpsM` allele classes from the VirulenceFinder binary matrix.
 - **Validation** — long-read assemblies, KPS operon structure, RGP context,
   plasmid context.
-- **Figures** — all manuscript figures (`output/figures/`).
+- **Figures** — all manuscript figures under `output/` (see [Outputs](#outputs)).
 
 ## Installation
 
@@ -113,7 +113,7 @@ gzip -d ST69/*.fna.gz
 bash 02_annotation/run_abricate.sh ST69
 bash 02_annotation/run_vf_resfinder.sh ST69
 # 05 summary matrices
-Rscript 02_annotation/build_finder_summaries.R . finder_result
+Rscript 02_annotation/build_finder_summaries.R analysis_results finder_result
 # 06 pangenome + tree
 bash 03_pangenome/run_pangenome_tree.sh ST69
 # 07 analysis + figures
@@ -191,11 +191,12 @@ All settings are environment variables with defaults in `config.R`:
 ## Outputs
 
 - `finder_result/` — VirulenceFinder/ResFinder binary, burden, gene-frequency,
-  long-format matrices + QC.
+  long-format matrices + QC (flat, all-ST, `st` column).
 - `card_vfdb_result/` — abricate VFDB/CARD per-genome tables and summaries.
 - `output/{ST}/` — per-analysis tables (virulence, resistance, temporal,
   enrichment, K-type, clusters).
-- `output/{ST}/figures/` — all manuscript figures.
+- `output/figures_*/` — manuscript figure panels; `output/combined_figures/`
+  holds the combined multi-page `All_Figures.pdf` (script `99`).
 - `{ST}_bootstrap.treefile` — core-genome phylogeny from IQ-TREE.
 
 ## FAQ / troubleshooting

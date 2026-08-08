@@ -52,8 +52,9 @@ bash run_all.sh ST69 --analyze
 ```bash
 # Check summary matrices were built
 head finder_result/virulencefinder_summary/virulencefinder_binary_matrix.tsv
-# Check figures
-ls output/ST69/figures/
+# Check figures (3-panel panels + combined multi-page PDF)
+ls output/figures_all_3panel/
+ls output/combined_figures/
 ```
 
 ## Troubleshooting
