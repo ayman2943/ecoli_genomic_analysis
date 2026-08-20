@@ -51,16 +51,11 @@
 ./scripts/10e_allelic_conversion.R
 ./scripts/10f_st10_arg_decomposition.R
 ./scripts/10g_long_read_validation.R
-./scripts/11_fig01_temporal_trends.R
 ./scripts/12_fig02-05_ST69_analysis.R
 ./scripts/13_fig06_cluster_temporal.R
 ./scripts/14_fig06_gene_trajectories.R
 ./scripts/15_fig07_tree_parsimony.R
 ./scripts/16_fig07_phylogeny_summary.R
-./scripts/17_fig08_clinical_sensitivity.R
-./scripts/18_fig09_clinical_enrichment.R
 ./scripts/19_fig_composite.R
-./scripts/20_fig_kps_validation.R
-./scripts/21_fig_supplementary_S2.R
 ./scripts/22_fig_supplementary_combined.R
 ./scripts/99_ALL_FIGURES_COMBINED.R

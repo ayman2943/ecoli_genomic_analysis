@@ -110,17 +110,26 @@ run_script("ST10 ARG decomposition",         "10f_st10_arg_decomposition.R")
 run_script("Long-read validation",           "10g_long_read_validation.R")
 
 # === PHASE 9: Figure scripts ===
-run_script("Figure 1: temporal trends",               "11_fig01_temporal_trends.R")
+# NOTE (deduplicated): Figure 1 (temporal trends), the Figure 7 sensitivity
+# figure, the kps-validation figure, and Supplementary Figure S2 (allelic
+# conversion) are produced as a side effect of their analysis-stage scripts
+# above (06a_temporal_mk.R, 09a_sensitivity_analysis.R, 10a_kps_validation.R,
+# 10e_allelic_conversion.R respectively). Those figures were previously
+# ALSO generated a second time from byte-identical duplicate scripts
+# (11_/17_/20_/21_) kept under different "figNN" names — pure dead weight
+# that doubled runtime and could silently drift out of sync with the
+# analysis scripts if only one copy were ever edited. The duplicates have
+# been moved to _to_delete/ and removed from this pipeline.
 run_script("Figures 2–5: ST69 analysis",              "12_fig02-05_ST69_analysis.R")
 run_script("Figure 6: cluster temporal",              "13_fig06_cluster_temporal.R")
 run_script("Figure 6: gene trajectories",             "14_fig06_gene_trajectories.R")
 run_script("Figure 7: tree parsimony",                "15_fig07_tree_parsimony.R",     optional = TRUE)
 run_script("Figure 7: phylogeny summary",             "16_fig07_phylogeny_summary.R",  optional = TRUE)
-run_script("Figure 8: clinical sensitivity",          "17_fig08_clinical_sensitivity.R")
-run_script("Figure 9: clinical enrichment",           "18_fig09_clinical_enrichment.R")
+# NOTE: "Figure 9" (clinical enrichment) is not a standalone figure in the
+# published manuscript -- its content was folded into Figure 7's middle
+# panel (clinical proportion over time). 08_clinical_enrichment_3panel.R
+# above still produces its own 3-panel figure for validation/QC purposes.
 run_script("Composite figures",                     "19_fig_composite.R",     optional = TRUE)
-run_script("KPS validation figure",                   "20_fig_kps_validation.R")
-run_script("Supplementary S2 figure",                 "21_fig_supplementary_S2.R")
 run_script("Supplementary combined figure",           "22_fig_supplementary_combined.R")
 
 # === PHASE 10: Combined figure output (optional) ===
