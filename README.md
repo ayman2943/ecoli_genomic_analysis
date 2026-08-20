@@ -103,6 +103,7 @@ bash run_all.sh ST69 --analyze        # R analysis + figures only
 
 Or run stages manually:
 
+<<<<<<< HEAD
 ```bash
 # 01 filter metadata
 Rscript 00_metadata/filter_metadata.R "$RAW_ENTERO_EXPORT"
@@ -119,9 +120,13 @@ bash 03_pangenome/run_pangenome_tree.sh ST69
 # 07 analysis + figures
 Rscript run_pipeline.R ST69
 ```
+=======
+This project is licensed under the MIT License - see the (LICENSE) file for details.
+>>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 ## Pipeline stages
 
+<<<<<<< HEAD
 | # | Script | Purpose |
 |---|--------|---------|
 | 00 | `00_metadata/filter_metadata.R` | Filter EnteroBase export to target ST |
@@ -131,6 +136,9 @@ Rscript run_pipeline.R ST69
 | 04 | `02_annotation/build_finder_summaries.R` | binary/burden/frequency matrices |
 | 05 | `03_pangenome/run_pangenome_tree.sh` | Prokka → PPanGGOLiN → MSA → trimAL → IQ-TREE |
 | 06 | `run_pipeline.R` | All analyses + figures (see below) |
+=======
+Contributions are welcome! Please read (CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+>>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 `run_pipeline.R` runs the numbered scripts in `scripts/` in dependency order:
 
@@ -164,6 +172,7 @@ Ecoli_genomic_analysis/
 └── docs/               detailed structure & usage docs
 ```
 
+<<<<<<< HEAD
 ## Reproducing the manuscript
 
 All results in the manuscript (tables + figures) come from the R scripts in
@@ -172,6 +181,8 @@ regenerates everything under `output/`. The three supplementary workbook
 sheets are produced by scripts `09d` (K-type assignment) and `09e`
 (summary statistics); the accession sheet is built from
 `metadata_matched/matched_{ST}.xlsx`.
+=======
+>>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 ## Configuration
 
@@ -188,7 +199,11 @@ All settings are environment variables with defaults in `config.R`:
 | `PPANG_RAM` | 16 | PPanGGOLiN RAM (GB) |
 | `IQTREE_MEM` | 14G | IQ-TREE memory |
 
+<<<<<<< HEAD
 ## Outputs
+=======
+For questions or collaboration inquiries, please contact: aymanbin2943@gmail.com
+>>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 - `finder_result/` — VirulenceFinder/ResFinder binary, burden, gene-frequency,
   long-format matrices + QC (flat, all-ST, `st` column).
