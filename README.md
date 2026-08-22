@@ -2,13 +2,16 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-End-to-end pipeline for the population genomics of extraintestinal pathogenic
-*Escherichia coli* (ExPEC) across five sequence types (ST10, ST69, ST73, ST95,
-ST131). Reproduces every analysis and figure in the accompanying manuscript.
+End-to-end, reproducible pipeline for the population genomics of
+extraintestinal pathogenic *Escherichia coli* (ExPEC) across five sequence
+types (ST10, ST69, ST73, ST95, ST131). Every script needed to go from a raw
+EnteroBase metadata export to every table and figure in the accompanying
+manuscript is in this repository — nothing more.
 
 ```
 EnteroBase metadata ──▶ download assemblies ──▶ abricate VFDB/CARD
-    + VirulenceFinder + ResFinder ──▶ summary matrices ──▶ pangenome + core tree
+    + VirulenceFinder + ResFinder ──▶ summary matrices
+    ──▶ mob-suite + plasmid abricate (optional) ──▶ pangenome + core tree
     ──▶ shell-gene clustering ──▶ tree mapping ──▶ virulence/resistance analysis
     ──▶ temporal trends (Mann-Kendall) ──▶ clinical enrichment ──▶ figures
 ```
@@ -41,14 +44,15 @@ Key analyses:
   phylogeny (`{ST}_bootstrap.treefile` from IQ-TREE).
 - **Virulence & resistance** — per-cluster enrichment, temporal dynamics,
   Mann-Kendall trend tests for VFDB, VirulenceFinder, CARD and ResFinder.
+- **Plasmid context** — mob-suite plasmid reconstruction + abricate, to
+  classify virulence/AMR genes as chromosomal vs. plasmid-associated.
 - **ST10 decomposition** — compositional drivers of expansion within ST10.
 - **Clinical enrichment** — clinical vs non-clinical comparisons with
   sensitivity analysis.
 - **Capsule (K-type) classification** — group 2/group 3 capsule assignment
   based on `kpsM` allele classes from the VirulenceFinder binary matrix.
-- **Validation** — long-read assemblies, KPS operon structure, RGP context,
-  plasmid context.
-- **Figures** — all manuscript figures under `output/` (see [Outputs](#outputs)).
+- **Validation** — long-read assemblies, KPS operon structure, RGP context.
+- **Figures** — all 8 manuscript figures under `output/` (see [Outputs](#outputs)).
 
 ## Installation
 
@@ -62,7 +66,17 @@ conda activate wgs
 This provides abricate, prokka, ppanggolin, iqtree, trimal, seqtk,
 VirulenceFinder, ResFinder and the NCBI `datasets`/Entrez tools.
 
-### 2. Databases
+### 2. mob-suite (for the optional plasmid stage)
+
+```bash
+conda install -c bioconda mob_suite
+```
+
+Not required for the core pipeline — only for `scripts/Plasmid_assembly/`
+and the three downstream scripts that read its output
+(`Virulence/Plasmid_VFDB.R`, `AMR/Plasmid_CARD.R`, `Analysis/Figure8.R`).
+
+### 3. Databases
 
 Download the reference databases (all FASTA-based, no config needed):
 
@@ -80,7 +94,7 @@ abricate --setupdb
 Set `VF_DB` / `RF_DB` in `config/pipeline_config.sh` if you placed them
 elsewhere.
 
-### 3. R packages
+### 4. R packages
 
 ```bash
 Rscript install.R
@@ -96,27 +110,32 @@ optional tree-figure code inside `scripts/Analysis/Supplementary.R`).
 2. Optionally export `NCBI_API_KEY` to speed up downloads.
 
 ```bash
-bash run_all.sh ST69                  # full run for ST69
+bash run_all.sh ST69                  # full run for ST69 (skips the plasmid
+                                       # stage automatically if mob_recon isn't installed)
 bash run_all.sh ST69 --annotate       # skip download, just run tools + summaries
+bash run_all.sh ST69 --plasmid        # mob-suite + plasmid abricate only
 bash run_all.sh ST69 --analyze        # R analysis + figures only
 ```
 
-Or run stages manually:
+Or run every stage manually:
 
 ```bash
 # 01 filter metadata
-Rscript 00_metadata/filter_metadata.R "$RAW_ENTERO_EXPORT"
-# 02 download (requires NCBI datasets + Enterz tools)
-python3 01_download/download_assemblies.py metadata/ST69_filtered.xlsx ST69
+Rscript scripts/Setup/filter_metadata.R "$RAW_ENTERO_EXPORT"
+# 02 download (requires NCBI datasets + Entrez tools)
+python3 scripts/Setup/download_assemblies.py metadata/ST69_filtered.xlsx ST69
 gzip -d ST69/*.fna.gz
-# 03-04 annotation
-bash 02_annotation/run_abricate.sh ST69
-bash 02_annotation/run_vf_resfinder.sh ST69
+# 03-04 whole-genome annotation
+bash scripts/Annotation/run_abricate.sh ST69
+bash scripts/Annotation/run_vf_resfinder.sh ST69
 # 05 summary matrices
-Rscript 02_annotation/build_finder_summaries.R analysis_results finder_result
-# 06 pangenome + tree
-bash 03_pangenome/run_pangenome_tree.sh ST69
-# 07 analysis + figures
+Rscript scripts/Prerequisites/00_build_finder_summaries.R analysis_results finder_result
+# 06 plasmid assembly + annotation (optional; needs mob_suite)
+bash scripts/Plasmid_assembly/run_mobsuite.sh ST69
+bash scripts/Plasmid_assembly/run_abricate_plasmids.sh ST69
+# 07 pangenome + tree
+bash scripts/Pangenome/run_pangenome_tree.sh ST69
+# 08 analysis + figures
 Rscript run_pipeline.R ST69
 ```
 
@@ -124,29 +143,34 @@ Rscript run_pipeline.R ST69
 
 | # | Script | Purpose |
 |---|--------|---------|
-| 00 | `00_metadata/filter_metadata.R` | Filter EnteroBase export to target ST |
-| 01 | `01_download/download_assemblies.py` | Parallel NCBI download of assemblies |
-| 02 | `02_annotation/run_abricate.sh` | abricate VFDB + CARD (80/80) |
-| 03 | `02_annotation/run_vf_resfinder.sh` | VirulenceFinder + ResFinder (80/80) |
-| 04 | `02_annotation/build_finder_summaries.R` | binary/burden/frequency matrices |
-| 05 | `03_pangenome/run_pangenome_tree.sh` | Prokka → PPanGGOLiN → MSA → trimAL → IQ-TREE |
-| 06 | `run_pipeline.R` | All analyses + figures (see below) |
+| 01 | `scripts/Setup/filter_metadata.R` | Filter EnteroBase export to target ST |
+| 02 | `scripts/Setup/download_assemblies.py` | Parallel NCBI download of assemblies |
+| 03 | `scripts/Annotation/run_abricate.sh` | abricate VFDB + CARD (80/80) |
+| 04 | `scripts/Annotation/run_vf_resfinder.sh` | VirulenceFinder + ResFinder (80/80) |
+| 05 | `scripts/Prerequisites/00_build_finder_summaries.R` | binary/burden/frequency matrices |
+| 06 | `scripts/Plasmid_assembly/run_mobsuite.sh` + `run_abricate_plasmids.sh` | plasmid reconstruction + annotation (optional) |
+| 07 | `scripts/Pangenome/run_pangenome_tree.sh` | Prokka → PPanGGOLiN → MSA → trimAL → IQ-TREE |
+| 08 | `run_pipeline.R` | All analyses + figures (see below) |
 
-`run_pipeline.R` runs the scripts in `scripts/` in dependency order. That
-folder is organised one script per virulence/AMR database and one script per
-published figure (see `scripts/README.md` for the full map and the evidence
-behind each figure → script assignment):
+`run_pipeline.R` runs the R scripts in `scripts/` in dependency order (that
+is stages 05–08's R portion, i.e. everything under `Prerequisites/`,
+`Virulence/`, `AMR/`, and `Analysis/`). `scripts/` as a whole covers the
+*entire* pipeline, bash/python stages included — see `scripts/README.md`
+for the full map and the evidence behind each figure → script assignment:
 
+- `Setup/` — filter metadata, download assemblies.
+- `Annotation/` — abricate (VFDB/CARD) + VirulenceFinder/ResFinder on
+  whole-genome assemblies.
+- `Plasmid_assembly/` — mob-suite plasmid reconstruction, then abricate on
+  the reconstructed plasmid contigs (optional; see `scripts/README.md`).
+- `Pangenome/` — Prokka → PPanGGOLiN → core tree.
 - `Prerequisites/` — finder-summary matrices, shell-gene clustering (VFDB /
   VF), tree mapping (VFDB / VF), and per-cluster gene statistics. Shared
-  infrastructure every other folder below depends on.
+  infrastructure every other R folder depends on.
 - `Virulence/` — `VFDB.R`, `VirulenceFinder.R`, `Plasmid_VFDB.R` (raw
   per-database virulence gene burden/annotation).
 - `AMR/` — `CARD.R`, `ResFinder.R`, `Plasmid_CARD.R` (raw per-database AMR
-  gene burden/annotation; `Plasmid_CARD.R` is currently a placeholder — no
-  such analysis exists in this repo, see its header).
-- `Plasmid_assembly/` — mob-suite plasmid assembly/typing; currently a
-  placeholder (`README.md`) since that step is run outside this repo.
+  gene burden/annotation).
 - `Analysis/` — `Figure1.R` … `Figure8.R` (one script per published figure;
   `Figure3.R` is a placeholder since that figure was built in iTOL, not R)
   plus `Supplementary.R` (every remaining supplementary analysis/table/
@@ -156,33 +180,38 @@ behind each figure → script assignment):
 
 ```
 Ecoli_genomic_analysis/
-├── 00_metadata/        metadata filtering
-├── 01_download/        assembly downloader (sanitized, API key via env)
-├── 02_annotation/      abricate, VirulenceFinder/ResFinder, summary builder
-├── 03_pangenome/       Prokka / PPanGGOLiN / IQ-TREE pipeline
-├── config/             pipeline_config.sh (site settings)
-├── scripts/            R analysis scripts — Prerequisites/, Virulence/,
-│                       AMR/, Plasmid_assembly/, Analysis/ (see above)
-├── config.R            R configuration (env-driven, see below)
-├── run_pipeline.R      master R runner
-├── run_all.sh          end-to-end orchestrator
-├── environment.yml     conda environment
-├── requirements.txt    python deps
-├── install.R           R package installer
-└── docs/               detailed structure & usage docs
+├── scripts/
+│   ├── Setup/            metadata filtering, assembly download
+│   ├── Annotation/        abricate, VirulenceFinder/ResFinder
+│   ├── Plasmid_assembly/  mob-suite + plasmid abricate (optional)
+│   ├── Pangenome/         Prokka / PPanGGOLiN / IQ-TREE
+│   ├── Prerequisites/     shell clustering, tree mapping, cluster-gene stats
+│   ├── Virulence/         VFDB, VirulenceFinder, Plasmid_VFDB
+│   ├── AMR/               CARD, ResFinder, Plasmid_CARD
+│   └── Analysis/          Figure1.R ... Figure8.R, Supplementary.R
+├── config/                pipeline_config.sh (site settings)
+├── config.R               R configuration (env-driven, see below)
+├── run_pipeline.R         master R runner (Prerequisites/Virulence/AMR/Analysis)
+├── run_all.sh             end-to-end orchestrator (every stage above)
+├── environment.yml        conda environment
+├── requirements.txt       python deps
+├── install.R              R package installer
+├── DIRECTORY_TREE.txt     full file listing
+└── LICENSE
 ```
 
 ## Reproducing the manuscript
 
-All results in the manuscript (tables + figures) come from the R scripts in
-`scripts/`. Running `Rscript run_pipeline.R ST69` from the repo root
-regenerates everything under `output/`. Figures 1–2 and 4–8 are each
-produced by their own `scripts/Analysis/FigureN.R`; Figure 3 was built in
-iTOL from data these scripts produce (see `scripts/Analysis/Figure3.R` for
-exactly which files). The supplementary workbook sheets (K-type assignment,
-summary statistics, and everything else not in the main 8 figures) are
-produced by `scripts/Analysis/Supplementary.R`; the accession sheet is built
-from `metadata_matched/matched_{ST}.xlsx`.
+All results in the manuscript (tables + figures) come from the scripts in
+`scripts/`. `bash run_all.sh ST69` runs the whole pipeline end-to-end from a
+raw EnteroBase export; `Rscript run_pipeline.R ST69` alone re-runs just the
+R analysis/figures stage against already-annotated data. Figures 1–2 and
+4–8 are each produced by their own `scripts/Analysis/FigureN.R`; Figure 3
+was built in iTOL from data these scripts produce (see
+`scripts/Analysis/Figure3.R` for exactly which files). The supplementary
+workbook sheets (K-type assignment, summary statistics, and everything else
+not in the main 8 figures) are produced by `scripts/Analysis/Supplementary.R`;
+the accession sheet is built from `metadata_matched/matched_{ST}.xlsx`.
 
 ## Configuration
 
@@ -194,7 +223,7 @@ All settings are environment variables with defaults in `config.R`:
 | `ECOLI_BASE_DIR` | `getwd()` | Working directory containing inputs |
 | `ECOLI_PANGENOME_DIR` | — | External pangenome dir for non-ST69 lineages |
 | `NCBI_API_KEY` | — | NCBI key to speed downloads (never committed) |
-| `JOBS` | 6 | parallel abricate jobs |
+| `JOBS` | 6 | parallel abricate/mob-suite jobs |
 | `CPU` | 8 | prokka / ppanggolin threads |
 | `PPANG_RAM` | 16 | PPanGGOLiN RAM (GB) |
 | `IQTREE_MEM` | 14G | IQ-TREE memory |
@@ -203,13 +232,16 @@ All settings are environment variables with defaults in `config.R`:
 
 - `finder_result/` — VirulenceFinder/ResFinder binary, burden, gene-frequency,
   long-format matrices + QC (flat, all-ST, `st` column).
-- `card_vfdb_result/` — abricate VFDB/CARD per-genome tables and summaries.
+- `card_vfdb_result/` — abricate VFDB/CARD per-genome tables and summaries
+  (whole genome).
+- `../Plasmid/` — mob-suite + abricate output for reconstructed plasmid
+  contigs (sits next to the repo root, not inside it — see
+  `scripts/README.md`).
 - `output/{ST}/` — per-analysis tables (virulence, resistance, temporal,
   enrichment, K-type, clusters).
 - `output/figures_*/` — manuscript figure panels, one set per
   `scripts/Analysis/FigureN.R`; `scripts/Analysis/Supplementary.R` produces
-  the combined `Supplementary_Figures_Combined.pdf` (its final block, based
-  on the original `22_fig_supplementary_combined.R`) plus every individual
+  the combined `Supplementary_Figures_Combined.pdf` plus every individual
   supplementary table/figure along the way.
 - `{ST}_bootstrap.treefile` — core-genome phylogeny from IQ-TREE.
 
@@ -218,6 +250,12 @@ All settings are environment variables with defaults in `config.R`:
 - **`ggtree` not installed** — the optional tree-figure code inside
   `scripts/Analysis/Supplementary.R` is skipped automatically if `ggtree`
   isn't available; run `Rscript install.R` to add it.
+- **`mob_recon` not found** — the plasmid stage (`scripts/Plasmid_assembly/`)
+  is entirely optional; `run_all.sh` skips it automatically and
+  `run_pipeline.R` skips `Virulence/Plasmid_VFDB.R`, `AMR/Plasmid_CARD.R`,
+  and `Analysis/Figure8.R` (all marked `optional = TRUE`) if its output
+  isn't present. Install with `conda install -c bioconda mob_suite` to
+  enable it.
 - **Downloader asks for confirmation** — set `DOWNLOAD_ASSUME_YES=1` for
   unattended runs.
 - **PPanGGOLiN out of memory** — reduce `N_GENOMES` (subsample) or lower

@@ -91,16 +91,17 @@ run_script("Map clusters to core tree (VF)",  "Prerequisites/03d_tree_mapping_vf
 # === PHASE 2: Virulence (one script per database) ===
 run_script("Virulence: VFDB",           "Virulence/VFDB.R")
 run_script("Virulence: VirulenceFinder", "Virulence/VirulenceFinder.R")
-run_script("Virulence: Plasmid VFDB",   "Virulence/Plasmid_VFDB.R", optional = TRUE)  # needs external Plasmid dataset
+run_script("Virulence: Plasmid VFDB",   "Virulence/Plasmid_VFDB.R", optional = TRUE)  # needs scripts/Plasmid_assembly/ output (external Plasmid/ dataset)
 
 # === PHASE 3: AMR (one script per database) ===
 run_script("AMR: CARD",       "AMR/CARD.R")
 run_script("AMR: ResFinder",  "AMR/ResFinder.R")  # includes 05b/05c cluster + decreasing-trend follow-ons, see file header
-run_script("AMR: Plasmid CARD", "AMR/Plasmid_CARD.R", optional = TRUE)  # placeholder -- no such analysis exists yet, see file header
+run_script("AMR: Plasmid CARD", "AMR/Plasmid_CARD.R", optional = TRUE)  # needs scripts/Plasmid_assembly/ output (external Plasmid/ dataset)
 
-# === PHASE 4: Plasmid assembly ===
-# No R script here -- mob-suite is run externally (see Plasmid_assembly/README.md).
-# Its output feeds Virulence/Plasmid_VFDB.R and Analysis/Figure8.R above/below.
+# === PHASE 4: Plasmid assembly (bash, run separately before this pipeline) ===
+# No R script here -- scripts/Plasmid_assembly/run_mobsuite.sh then
+# run_abricate_plasmids.sh produce the external ../Plasmid/ dataset that
+# Virulence/Plasmid_VFDB.R, AMR/Plasmid_CARD.R, and Analysis/Figure8.R read.
 
 # === PHASE 5: Cluster-gene prerequisite for Figure 6 ===
 # Organisationally lives in Prerequisites/, but must run AFTER Virulence/VFDB.R

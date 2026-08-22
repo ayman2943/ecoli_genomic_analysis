@@ -1,0 +1,38 @@
+# Generated/downloaded data -- large, regenerable, never needed to review the code.
+# Reproducing the manuscript regenerates all of this from the scripts in scripts/.
+
+# Raw assemblies (downloaded per ST)
+ST10/
+ST69/
+ST73/
+ST95/
+ST131/
+metadata/
+metadata_matched/
+
+# Annotation intermediates
+analysis_results/
+card_vfdb_result/
+finder_result/
+
+# Pangenome / tree intermediates
+pangenome_output/
+*.treefile
+*.contree
+*.iqtree
+*.log
+
+# Analysis outputs (figures, tables)
+output/
+
+# Plasmid_assembly/ output lives one level ABOVE the repo root
+# (../Plasmid/) and so is outside this repo entirely -- nothing to ignore.
+
+# Environment / editor / OS cruft
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+__pycache__/
+*.pyc
+.env

@@ -1,48 +1,60 @@
-# Plasmid_assembly
+# Plasmid_assembly/
 
-This folder is reserved for the **mob-suite** plasmid assembly/typing step.
+Reconstructs plasmid contigs from each whole-genome assembly (mob-suite),
+then annotates them (abricate VFDB + CARD) — the input `Virulence/Plasmid_VFDB.R`,
+`AMR/Plasmid_CARD.R`, and `Analysis/Figure8.R` need.
 
-## Status: not present in this repository
+## Scripts, run in order
 
-After reviewing every script in the codebase, no mob-suite command, wrapper
-script, or mob-suite output file exists anywhere in this repo. Per your
-answer ("see the hdd"), the mob-suite step is run locally on your own
-machine/hard drive, outside of this reproducibility repository -- its
-output (the per-genome plasmid sequences/typing calls) is what feeds the
-`Plasmid/` input directory that `Virulence/Plasmid_VFDB.R`,
-`AMR/Plasmid_CARD.R`, and `Analysis/Figure8.R` all read from
-(`config$BASE_DIR/../Plasmid/plasmid_vfdb_summary/{ST}_plasmid_summary.tsv`).
+1. **`run_mobsuite.sh`** — runs `mob_recon` on every assembly in `{ST}/*.fna`
+   to reconstruct and type plasmid contigs. For each genome with at least
+   one predicted plasmid, its plasmid contigs are concatenated into a
+   single `{genome}_combined_plasmids.fasta`.
 
-## What's needed to complete this folder
+   ```bash
+   bash scripts/Plasmid_assembly/run_mobsuite.sh ST69
+   bash scripts/Plasmid_assembly/run_mobsuite.sh all      # all 5 STs
+   ```
 
-To make the pipeline fully reproducible end-to-end (assembly -> plasmid
-typing -> plasmid VF/AMR annotation), this folder should eventually contain
-the actual mob-suite invocation you use, for example something in the shape
-of:
+   Requires `mob_recon` (mob-suite):
+   ```bash
+   conda install -c bioconda mob_suite
+   ```
 
-```bash
-#!/usr/bin/env bash
-# Plasmid_assembly/run_mobsuite.sh
-# Run mob_recon (mob-suite) on each assembled genome to identify and
-# reconstruct plasmid contigs, producing per-genome plasmid FASTA files
-# that are subsequently annotated (VFDB/CARD) to build the
-# Plasmid/plasmid_vfdb_summary and Plasmid/plasmid_card_summary tables.
+2. **`run_abricate_plasmids.sh`** — runs abricate (VFDB + CARD, 80% identity
+   / 80% coverage — same thresholds as the whole-genome annotation) on each
+   combined plasmid FASTA from step 1, then builds the per-ST summary
+   tables:
 
-for genome in assemblies/*.fasta; do
-  sample=$(basename "$genome" .fasta)
-  mob_recon --infile "$genome" --outdir "mob_suite_out/${sample}" --run_typer
-done
+   ```bash
+   bash scripts/Plasmid_assembly/run_abricate_plasmids.sh ST69
+   ```
+
+   Requires `abricate` (already needed for `Annotation/run_abricate.sh`).
+
+## Output
+
+Both scripts write to a `Plasmid/` directory that sits **next to** the repo
+root (`../Plasmid/` relative to this repo), not inside it — like
+`card_vfdb_result/`, `finder_result/`, and `output/` elsewhere in this
+pipeline, it's large, fully regenerable data, not code, so it isn't
+committed to git:
+
+```
+../Plasmid/
+├── mob_suite_raw/{ST}/{genome}/          raw mob_recon output per genome
+├── combined_fasta/{ST}/{genome}_combined_plasmids.fasta
+├── plasmid_vfdb/{ST}/{genome}_combined_plasmids_vfdb.tsv
+├── plasmid_card/{ST}/{genome}_combined_plasmids_card.tsv
+├── plasmid_vfdb_summary/{ST}_plasmid_summary.tsv    <- read by Virulence/Plasmid_VFDB.R, Analysis/Figure8.R
+└── plasmid_card_summary/{ST}_plasmid_summary.tsv    <- read by AMR/Plasmid_CARD.R
 ```
 
-Since no such command was available to extract from the existing repo, this
-placeholder documents the gap transparently rather than inventing an
-untested command. If you'd like this filled in with your actual mob-suite
-parameters (database version, thresholds, etc.), just share the command you
-run and it can be dropped in here verbatim.
+## Why this is optional
 
-## Downstream dependents
-
-- `Virulence/Plasmid_VFDB.R`
-- `AMR/Plasmid_CARD.R` (currently also a placeholder -- see that file)
-- `Analysis/Figure8.R` (submitted Figure 8, Panel A "Genomic location" and
-  Panel B "RGP co-localization")
+Not every genome has a predicted plasmid, and this stage adds a real
+compute cost (mob-suite + a second abricate pass) on top of the
+whole-genome annotation `Annotation/` already does. `run_pipeline.R` marks
+`Virulence/Plasmid_VFDB.R`, `AMR/Plasmid_CARD.R`, and `Analysis/Figure8.R`
+as `optional = TRUE` — they run automatically once this stage's output
+exists, and are cleanly skipped (not failed) otherwise.
