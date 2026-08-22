@@ -86,8 +86,8 @@ elsewhere.
 Rscript install.R
 ```
 
-Installs all CRAN packages plus `ggtree` (Bioconductor, used only by the two
-optional tree-figure scripts).
+Installs all CRAN packages plus `ggtree` (Bioconductor, used only by the
+optional tree-figure code inside `scripts/Analysis/Supplementary.R`).
 
 ## Quick start
 
@@ -103,7 +103,6 @@ bash run_all.sh ST69 --analyze        # R analysis + figures only
 
 Or run stages manually:
 
-<<<<<<< HEAD
 ```bash
 # 01 filter metadata
 Rscript 00_metadata/filter_metadata.R "$RAW_ENTERO_EXPORT"
@@ -120,13 +119,9 @@ bash 03_pangenome/run_pangenome_tree.sh ST69
 # 07 analysis + figures
 Rscript run_pipeline.R ST69
 ```
-=======
-This project is licensed under the MIT License - see the (LICENSE) file for details.
->>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 ## Pipeline stages
 
-<<<<<<< HEAD
 | # | Script | Purpose |
 |---|--------|---------|
 | 00 | `00_metadata/filter_metadata.R` | Filter EnteroBase export to target ST |
@@ -136,22 +131,26 @@ This project is licensed under the MIT License - see the (LICENSE) file for deta
 | 04 | `02_annotation/build_finder_summaries.R` | binary/burden/frequency matrices |
 | 05 | `03_pangenome/run_pangenome_tree.sh` | Prokka → PPanGGOLiN → MSA → trimAL → IQ-TREE |
 | 06 | `run_pipeline.R` | All analyses + figures (see below) |
-=======
-Contributions are welcome! Please read (CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
->>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
-`run_pipeline.R` runs the numbered scripts in `scripts/` in dependency order:
+`run_pipeline.R` runs the scripts in `scripts/` in dependency order. That
+folder is organised one script per virulence/AMR database and one script per
+published figure (see `scripts/README.md` for the full map and the evidence
+behind each figure → script assignment):
 
-- `02b`–`02c` shell clustering (VFDB / VF)
-- `03c`–`03d` tree mapping (VFDB / VF)
-- `04a`–`04b` virulence analysis + cluster genes
-- `05a`–`05c` resistance analysis (CARD + ResFinder)
-- `06a` temporal trends + Mann-Kendall
-- `07a`–`07b` ST10 decomposition
-- `08` clinical enrichment
-- `09a`–`09e` sensitivity, capsule classification/comparison, K-types, summary stats
-- `10a`–`10g` validation (KPS, RGP, plasmid, allelic conversion, long reads)
-- `11`–`22`, `99` figures (all manuscript figures + supplementary)
+- `Prerequisites/` — finder-summary matrices, shell-gene clustering (VFDB /
+  VF), tree mapping (VFDB / VF), and per-cluster gene statistics. Shared
+  infrastructure every other folder below depends on.
+- `Virulence/` — `VFDB.R`, `VirulenceFinder.R`, `Plasmid_VFDB.R` (raw
+  per-database virulence gene burden/annotation).
+- `AMR/` — `CARD.R`, `ResFinder.R`, `Plasmid_CARD.R` (raw per-database AMR
+  gene burden/annotation; `Plasmid_CARD.R` is currently a placeholder — no
+  such analysis exists in this repo, see its header).
+- `Plasmid_assembly/` — mob-suite plasmid assembly/typing; currently a
+  placeholder (`README.md`) since that step is run outside this repo.
+- `Analysis/` — `Figure1.R` … `Figure8.R` (one script per published figure;
+  `Figure3.R` is a placeholder since that figure was built in iTOL, not R)
+  plus `Supplementary.R` (every remaining supplementary analysis/table/
+  figure, concatenated in dependency order).
 
 ## Directory layout
 
@@ -162,7 +161,8 @@ Ecoli_genomic_analysis/
 ├── 02_annotation/      abricate, VirulenceFinder/ResFinder, summary builder
 ├── 03_pangenome/       Prokka / PPanGGOLiN / IQ-TREE pipeline
 ├── config/             pipeline_config.sh (site settings)
-├── scripts/            canonical numbered R analysis scripts (manuscript code)
+├── scripts/            R analysis scripts — Prerequisites/, Virulence/,
+│                       AMR/, Plasmid_assembly/, Analysis/ (see above)
 ├── config.R            R configuration (env-driven, see below)
 ├── run_pipeline.R      master R runner
 ├── run_all.sh          end-to-end orchestrator
@@ -172,17 +172,17 @@ Ecoli_genomic_analysis/
 └── docs/               detailed structure & usage docs
 ```
 
-<<<<<<< HEAD
 ## Reproducing the manuscript
 
 All results in the manuscript (tables + figures) come from the R scripts in
 `scripts/`. Running `Rscript run_pipeline.R ST69` from the repo root
-regenerates everything under `output/`. The three supplementary workbook
-sheets are produced by scripts `09d` (K-type assignment) and `09e`
-(summary statistics); the accession sheet is built from
-`metadata_matched/matched_{ST}.xlsx`.
-=======
->>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
+regenerates everything under `output/`. Figures 1–2 and 4–8 are each
+produced by their own `scripts/Analysis/FigureN.R`; Figure 3 was built in
+iTOL from data these scripts produce (see `scripts/Analysis/Figure3.R` for
+exactly which files). The supplementary workbook sheets (K-type assignment,
+summary statistics, and everything else not in the main 8 figures) are
+produced by `scripts/Analysis/Supplementary.R`; the accession sheet is built
+from `metadata_matched/matched_{ST}.xlsx`.
 
 ## Configuration
 
@@ -199,32 +199,33 @@ All settings are environment variables with defaults in `config.R`:
 | `PPANG_RAM` | 16 | PPanGGOLiN RAM (GB) |
 | `IQTREE_MEM` | 14G | IQ-TREE memory |
 
-<<<<<<< HEAD
 ## Outputs
-=======
-For questions or collaboration inquiries, please contact: aymanbin2943@gmail.com
->>>>>>> 7f2ecddd17bad111775367fb032f2fc6488d86c2
 
 - `finder_result/` — VirulenceFinder/ResFinder binary, burden, gene-frequency,
   long-format matrices + QC (flat, all-ST, `st` column).
 - `card_vfdb_result/` — abricate VFDB/CARD per-genome tables and summaries.
 - `output/{ST}/` — per-analysis tables (virulence, resistance, temporal,
   enrichment, K-type, clusters).
-- `output/figures_*/` — manuscript figure panels; `output/combined_figures/`
-  holds the combined multi-page `All_Figures.pdf` (script `99`).
+- `output/figures_*/` — manuscript figure panels, one set per
+  `scripts/Analysis/FigureN.R`; `scripts/Analysis/Supplementary.R` produces
+  the combined `Supplementary_Figures_Combined.pdf` (its final block, based
+  on the original `22_fig_supplementary_combined.R`) plus every individual
+  supplementary table/figure along the way.
 - `{ST}_bootstrap.treefile` — core-genome phylogeny from IQ-TREE.
 
 ## FAQ / troubleshooting
 
-- **`ggtree` not installed** — tree figure scripts (`15_`, `16_`) are marked
-  optional and skipped automatically; run `Rscript install.R` to add ggtree.
+- **`ggtree` not installed** — the optional tree-figure code inside
+  `scripts/Analysis/Supplementary.R` is skipped automatically if `ggtree`
+  isn't available; run `Rscript install.R` to add it.
 - **Downloader asks for confirmation** — set `DOWNLOAD_ASSUME_YES=1` for
   unattended runs.
 - **PPanGGOLiN out of memory** — reduce `N_GENOMES` (subsample) or lower
   `PPANG_RAM`; ≥32 GB recommended for >1,000 genomes.
-- **No ST directories found** — the summary builder (`build_finder_summaries.R`)
-  expects `analysis_results/{ST}/virulence|resfinder/`; run
-  `run_vf_resfinder.sh` first.
+- **No ST directories found** — the summary builder
+  (`scripts/Prerequisites/00_build_finder_summaries.R`) expects
+  `analysis_results/{ST}/virulence|resfinder/`; run `run_vf_resfinder.sh`
+  first.
 
 ## License
 
