@@ -3,25 +3,29 @@
 # run_pipeline.R — Master analysis pipeline for E. coli ExPEC
 #
 # Runs the full set of canonical analysis scripts in dependency order:
-#   shell clustering -> tree mapping -> virulence -> resistance -> temporal/MK
-#   -> ST10 decomposition -> clinical enrichment -> capsule/K-type -> validation -> figures
+#   prerequisites (finder summaries -> shell clustering -> tree mapping)
+#   -> Virulence (VFDB / VirulenceFinder / plasmid VFDB)
+#   -> AMR (CARD / ResFinder / plasmid CARD)
+#   -> cluster-gene prerequisite for Figure 6
+#   -> Analysis (Figure1.R .. Figure8.R, Supplementary.R)
 #
-# The scripts/ folder is organised into one subfolder per pipeline stage
-# (01_pangenome_clustering, 02_tree_mapping, ... 09_figures) so the stage
-# a script belongs to is visible from its path, not just its filename.
-# See scripts/README.md for the full script -> purpose -> figure/table map.
+# The scripts/ folder is organised one-script-per-database or
+# one-script-per-figure (Virulence/, AMR/, Plasmid_assembly/, Analysis/),
+# with a Prerequisites/ folder for the shared infrastructure every other
+# folder depends on. See scripts/README.md for the full script -> purpose
+# -> figure/table map and the confirmed figure->script evidence trail.
 #
 # Usage:
 #   Rscript run_pipeline.R                      # all steps for ST69
 #   TARGET_ST=ST10 Rscript run_pipeline.R       # different lineage
 #   Rscript run_pipeline.R ST95                  # positional arg also works
 #   Rscript run_pipeline.R --quick               # clustering + mapping only
-#   Rscript run_pipeline.R --from 09e            # resume at a given script
-#   Rscript run_pipeline.R --skip 15 --skip 16   # skip tree figures (no ggtree)
+#   Rscript run_pipeline.R --from AMR/CARD.R     # resume at a given script
+#   Rscript run_pipeline.R --skip Analysis/Figure3.R   # skip a script
 #
 # Pre-processing (bash — run separately, see run_all.sh):
 #   download assemblies  ->  abricate (VFDB/CARD)  ->  VF/ResFinder
-#   -> build finder summaries (R)  ->  pangenome/tree (bash)
+#   -> Prerequisites/00_build_finder_summaries.R  -> pangenome/tree (bash)
 
 args <- commandArgs(trailingOnly = TRUE)
 quick_mode  <- "--quick" %in% args
@@ -51,108 +55,68 @@ cat(bar(sprintf("PIPELINE: %s   Mode: %s   Resume: %s",
                 if (quick_mode) "QUICK" else "FULL",
                 if (is.null(resume_from)) "from start" else resume_from)))
 
-# run_script(): `script` is still the bare filename (e.g. "09e_summary_stats.R")
-# so --from/--skip matching and console labels are unchanged; `folder` is the
-# new scripts/ subfolder it now lives in. The two are joined only to build
-# the actual path passed to source().
-run_script <- function(label, script, folder, optional = FALSE) {
+# run_script(): `path` is the full path relative to scripts/, e.g.
+# "Virulence/VFDB.R" -- used directly for --from/--skip matching, console
+# labels, and the source() call.
+run_script <- function(label, path, optional = FALSE) {
   if (quick_mode && !grepl("cluster|mapping", label, ignore.case = TRUE)) return(invisible(NULL))
-  if (!is.null(resume_from) && script < resume_from) return(invisible(NULL))
-  if (script %in% skip_set) { cat(sprintf("\n>>> SKIPPED (--skip): %s %s\n", script, label)); return(invisible(NULL)) }
-  path <- file.path("scripts", folder, script)
-  cat(sprintf("\n>>> [%s] %s <<<\n", script, label))
-  if (!file.exists(path)) {
-    if (optional) { cat("  SKIPPED (optional, not present):", path, "\n"); return(invisible(NULL)) }
-    stop("Script not found: ", path)
+  if (!is.null(resume_from) && path < resume_from) return(invisible(NULL))
+  if (path %in% skip_set) { cat(sprintf("\n>>> SKIPPED (--skip): %s %s\n", path, label)); return(invisible(NULL)) }
+  full_path <- file.path("scripts", path)
+  cat(sprintf("\n>>> [%s] %s <<<\n", path, label))
+  if (!file.exists(full_path)) {
+    if (optional) { cat("  SKIPPED (optional, not present):", full_path, "\n"); return(invisible(NULL)) }
+    stop("Script not found: ", full_path)
   }
   t0 <- Sys.time()
   tryCatch({
-    source(path, local = TRUE)
+    source(full_path, local = TRUE)
     cat(sprintf("  DONE in %.1f min\n", as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   }, error = function(e) {
     cat(sprintf("  ERROR in %.1f min: %s\n", as.numeric(difftime(Sys.time(), t0, units = "mins")), e$message))
-    if (!optional) stop("Pipeline aborted at ", script, " (", label, ")")
+    if (!optional) stop("Pipeline aborted at ", path, " (", label, ")")
   })
 }
 
-# === PHASE 1: Shell-gene clustering ===
-run_script("Pangenome shell cluster (VFDB)", "02b_pangenome_shell_cluster_vfdb.R", "01_pangenome_clustering")
-run_script("Pangenome shell cluster (VF)",  "02c_pangenome_shell_cluster_vf.R",   "01_pangenome_clustering")
+# === PHASE 1: Prerequisites (finder summaries, shell clustering, tree mapping) ===
+run_script("Build finder summary matrices", "Prerequisites/00_build_finder_summaries.R")
+run_script("Pangenome shell cluster (VFDB)", "Prerequisites/02b_pangenome_shell_cluster_vfdb.R")
+run_script("Pangenome shell cluster (VF)",  "Prerequisites/02c_pangenome_shell_cluster_vf.R")
 
 if (quick_mode) { cat(bar("QUICK MODE — stopping after clustering.")); quit(save = "no", status = 0) }
 
-# === PHASE 2: Tree mapping ===
-run_script("Map clusters to core tree (VFDB)", "03c_tree_mapping_vfdb.R", "02_tree_mapping")
-run_script("Map clusters to core tree (VF)",  "03d_tree_mapping_vf.R",   "02_tree_mapping")
+run_script("Map clusters to core tree (VFDB)", "Prerequisites/03c_tree_mapping_vfdb.R")
+run_script("Map clusters to core tree (VF)",  "Prerequisites/03d_tree_mapping_vf.R")
 
-# === PHASE 3: Virulence + resistance analysis ===
-run_script("Virulence analysis (VFDB + VF)", "04a_virulence_analysis.R",           "03_virulence_resistance")
-run_script("Cluster gene analysis",          "04b_cluster_gene_analysis.R",        "03_virulence_resistance")
-run_script("Resistance analysis (CARD + ResFinder)", "05a_resistance_analysis.R",  "03_virulence_resistance")
-run_script("ResFinder cluster analysis",     "05b_resfinder_clusters.R",           "03_virulence_resistance")
-run_script("ResFinder decreasing trend",     "05c_resfinder_decreasing.R",         "03_virulence_resistance")
+# === PHASE 2: Virulence (one script per database) ===
+run_script("Virulence: VFDB",           "Virulence/VFDB.R")
+run_script("Virulence: VirulenceFinder", "Virulence/VirulenceFinder.R")
+run_script("Virulence: Plasmid VFDB",   "Virulence/Plasmid_VFDB.R", optional = TRUE)  # needs external Plasmid dataset
 
-# === PHASE 4: Temporal trend + Mann-Kendall ===
-run_script("Temporal trend + Mann-Kendall",  "06a_temporal_mk.R", "04_temporal_trends")
+# === PHASE 3: AMR (one script per database) ===
+run_script("AMR: CARD",       "AMR/CARD.R")
+run_script("AMR: ResFinder",  "AMR/ResFinder.R")  # includes 05b/05c cluster + decreasing-trend follow-ons, see file header
+run_script("AMR: Plasmid CARD", "AMR/Plasmid_CARD.R", optional = TRUE)  # placeholder -- no such analysis exists yet, see file header
 
-# === PHASE 5: ST10 decomposition (multilineage context) ===
-run_script("ST10 pangenome decomposition",   "07a_st10_decomposition.R",        "05_st10_decomposition")
-run_script("ST10 composition drivers",       "07b_st10_composition_drivers.R",  "05_st10_decomposition")
+# === PHASE 4: Plasmid assembly ===
+# No R script here -- mob-suite is run externally (see Plasmid_assembly/README.md).
+# Its output feeds Virulence/Plasmid_VFDB.R and Analysis/Figure8.R above/below.
 
-# === PHASE 6: Clinical enrichment + sensitivity ===
-run_script("Clinical enrichment (3-panel)",  "08_clinical_enrichment_3panel.R", "06_clinical_sensitivity")
-run_script("Sensitivity analysis",           "09a_sensitivity_analysis.R",      "06_clinical_sensitivity")
+# === PHASE 5: Cluster-gene prerequisite for Figure 6 ===
+# Organisationally lives in Prerequisites/, but must run AFTER Virulence/VFDB.R
+# since it reads that script's master shell-cluster table.
+run_script("Cluster gene analysis (for Figure 6)", "Prerequisites/04b_cluster_gene_analysis.R")
 
-# === PHASE 7: Capsule / K-type classification + summary stats ===
-run_script("Capsule classification",         "09b_capsule_classification.R", "07_capsule_ktype")
-run_script("Capsule comparison",             "09c_capsule_comparison.R",     "07_capsule_ktype")
-run_script("K-type analysis",                "09d_k_type_analysis.R",        "07_capsule_ktype")
-run_script("Summary statistics",             "09e_summary_stats.R",          "07_capsule_ktype")
-
-# === PHASE 8: Validation analyses ===
-run_script("KPS validation",                 "10a_kps_validation.R",         "08_validation")
-run_script("RGP neighbourhood",              "10b_rgp_neighbourhood.R",      "08_validation")
-run_script("RGP genomic context",            "10c_rgp_genomic_context.R",    "08_validation")
-run_script("Plasmid context",                "10d_plasmid_context.R",       "08_validation", optional = TRUE)
-run_script("Allelic conversion",             "10e_allelic_conversion.R",     "08_validation")
-run_script("ST10 ARG decomposition",         "10f_st10_arg_decomposition.R", "05_st10_decomposition")
-run_script("Long-read validation",           "10g_long_read_validation.R",   "08_validation")
-
-# === PHASE 9: Figure scripts ===
-# NOTE (deduplicated): Figure 1 (temporal trends), the Figure 7 sensitivity
-# figure, the kps-validation figure, and Supplementary Figure S2 (allelic
-# conversion) are produced as a side effect of their analysis-stage scripts
-# above (06a_temporal_mk.R, 09a_sensitivity_analysis.R, 10a_kps_validation.R,
-# 10e_allelic_conversion.R respectively). Those figures were previously
-# ALSO generated a second time from byte-identical duplicate scripts
-# (11_/17_/20_/21_) kept under different "figNN" names — pure dead weight
-# that doubled runtime and could silently drift out of sync with the
-# analysis scripts if only one copy were ever edited. The duplicates have
-# been removed from this pipeline.
-#
-# NOTE (unclear provenance — see scripts/README.md "Figures: open questions"):
-# 15_fig07_tree_parsimony.R and 16_fig07_phylogeny_summary.R are both
-# labelled "fig07" but neither one's output filename matches Figure 7
-# (Sensitivity analysis, produced by 09a_sensitivity_analysis.R above). By
-# content, 15_ appears to build the core-genome tree figure (Figure 3) and
-# 16_ appears to build the 8-panel ST69/ST10 summary figure (Figure 6) —
-# but this is inferred from the code, not confirmed against which script
-# was actually run to produce the submitted Figure_03.png/Figure_06.png.
-# Kept under their original names and numbers until that is confirmed.
-run_script("Figures 2-5: ST69 analysis",              "12_fig02-05_ST69_analysis.R",      "09_figures")
-run_script("Figure 6: cluster temporal",              "13_fig06_cluster_temporal.R",      "09_figures")
-run_script("Figure 6: gene trajectories",             "14_fig06_gene_trajectories.R",     "09_figures")
-run_script("Figure 7: tree parsimony",                "15_fig07_tree_parsimony.R",        "09_figures", optional = TRUE)
-run_script("Figure 7: phylogeny summary",             "16_fig07_phylogeny_summary.R",     "09_figures", optional = TRUE)
-# NOTE: "Figure 9" (clinical enrichment) is not a standalone figure in the
-# published manuscript -- its content was folded into Figure 7's middle
-# panel (clinical proportion over time). 08_clinical_enrichment_3panel.R
-# above still produces its own 3-panel figure for validation/QC purposes.
-run_script("Composite figures",                       "19_fig_composite.R",               "09_figures", optional = TRUE)
-run_script("Supplementary combined figure",           "22_fig_supplementary_combined.R",  "09_figures")
-
-# === PHASE 10: Combined figure output (optional) ===
-run_script("Combine all figures",                     "99_ALL_FIGURES_COMBINED.R", "09_figures", optional = TRUE)
+# === PHASE 6: Analysis — one script per published figure, plus Supplementary.R ===
+run_script("Figure 1: temporal trend + Mann-Kendall", "Analysis/Figure1.R")
+run_script("Figure 2: shell-cluster silhouette + gene content", "Analysis/Figure2.R")
+run_script("Figure 3: iTOL circular phylogenies (placeholder, see file header)", "Analysis/Figure3.R", optional = TRUE)
+run_script("Figure 4: Oaxaca-style decomposition", "Analysis/Figure4.R")
+run_script("Figure 5: per-cluster temporal burden trends", "Analysis/Figure5.R")
+run_script("Figure 6: 8-panel ST69/ST10 summary", "Analysis/Figure6.R")
+run_script("Figure 7: sensitivity analysis", "Analysis/Figure7.R")
+run_script("Figure 8: plasmid/RGP context", "Analysis/Figure8.R", optional = TRUE)  # needs external Plasmid dataset
+run_script("Supplementary: all remaining analyses/tables/figures", "Analysis/Supplementary.R")
 
 cat(bar(sprintf("PIPELINE COMPLETE for %s", config$TARGET_ST)))
 cat("Outputs in:", config$OUTPUT_DIR, "\n")
